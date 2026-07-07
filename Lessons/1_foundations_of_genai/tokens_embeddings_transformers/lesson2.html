@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Foundations: Lesson 2 - Embeddings: Meaning in Vector Space</title>
+</head>
+<body>
+
+    <h1>Foundations: Lesson 2 - Embeddings: Meaning in Vector Space</h1>
+
+    <p>Lesson 1 turned text into token IDs — arbitrary integers with no built-in notion of similarity. This lesson covers <b>embeddings</b>: learned vectors that place related tokens near each other in a high-dimensional space. That geometry is what makes analogies, search, and (later) contextual meaning possible.</p>
+
+    <hr>
+
+    <h2>1. The Problem: Token IDs Are Arbitrary</h2>
+    <p>Token ID 5000 and token ID 5001 are just consecutive integers. To the model's lookup table, they are unrelated symbols — like library shelf numbers that happen to be adjacent.</p>
+    <ul>
+        <li><b>"king"</b> and <b>"queen"</b> are semantically close (royalty), but their IDs might be 5000 and 8721.</li>
+        <li><b>"king"</b> and <b>"king"</b> must always map to the <em>same</em> vector — IDs are stable.</li>
+        <li>Nothing in the integer itself encodes gender, sentiment, or topic.</li>
+    </ul>
+    <p>We need a second step: turn each token ID into a <b>dense vector</b> where proximity reflects meaning.</p>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Arbitrary IDs</h3>
+                <p><strong>Question:</strong> If token 42 and token 43 are adjacent integers, does the model treat them as semantically similar?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">Not automatically. ID order is an artifact of vocabulary construction. Similarity comes from learned embedding vectors, not from ID proximity.</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>2. Embeddings: Converting Tokens to Vectors</h2>
+    <p>An <b>embedding</b> is a learned mapping: token ID → vector of real numbers. GPT-2 uses <b>768 dimensions</b> per token; larger models use 4,096 or more.</p>
+
+    <table border="1" cellpadding="12" cellspacing="0" width="100%" style="border-collapse: collapse; background-color: #f8fafc; border: 1px solid #cbd5e1;">
+        <tr>
+            <td align="center">
+                <div style="font-family: monospace; font-size: 1.05em;">
+                    <span style="background:#fce7f3;padding:4px 8px;border-radius:4px;">Token ID 5000</span>
+                    → <span style="background:#dbeafe;padding:4px 8px;border-radius:4px;">Embedding matrix lookup</span>
+                    → <span style="background:#dcfce7;padding:4px 8px;border-radius:4px;">Vector [0.2, -0.5, 0.8, …]</span>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse; margin-top: 12px;">
+        <tr bgcolor="#f1f5f9"><th>Token ID</th><th>Token</th><th>Embedding (first 5 dims, illustrative)</th></tr>
+        <tr><td>5000</td><td>king</td><td style="font-family: monospace;">[0.82, 0.61, 0.15, 0.44, -0.08]</td></tr>
+        <tr><td>8721</td><td>queen</td><td style="font-family: monospace;">[0.74, 0.59, -0.12, 0.41, -0.06]</td></tr>
+        <tr><td>1203</td><td>apple</td><td style="font-family: monospace;">[-0.55, -0.48, 0.05, -0.33, 0.22]</td></tr>
+    </table>
+
+    <p>Vectors are <b>not hand-coded</b>. They are rows of an embedding matrix updated during training. Each dimension is not guaranteed to mean one human-readable feature (like "gender"), but the full vector encodes statistical regularities from context.</p>
+    <p><b>Intuition:</b> tokens that appear in similar contexts end up with similar vectors.</p>
+
+    <hr>
+
+    <h2>3. The Embedding Space (Vector Space)</h2>
+    <p>Picture a space where every token is a point. In 2D (for teaching), we might plot:</p>
+
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#f1f5f9"><th>Token</th><th>2D position (illustrative)</th><th>Neighborhood</th></tr>
+        <tr><td>king</td><td>(0.8, 0.6)</td><td>queen, prince, monarch</td></tr>
+        <tr><td>queen</td><td>(0.7, 0.6)</td><td>king, throne, crown</td></tr>
+        <tr><td>man</td><td>(0.3, 0.1)</td><td>woman, person, human</td></tr>
+        <tr><td>apple</td><td>(-0.5, -0.5)</td><td>fruit, carrot, food</td></tr>
+    </table>
+
+    <p><b>Meaning ≈ proximity.</b> Real models use hundreds or thousands of dimensions; we project to 2D only for visualization.</p>
+
+    <canvas id="em-static-plot" width="420" height="260" style="border:1px solid #cbd5e1;background:#fff;display:block;margin:12px 0;"></canvas>
+    <p style="font-size:0.9em;color:#64748b;">Static preview: royalty cluster (blue), people (green), food (orange). Interactive explorer below expands this.</p>
+
+    <hr>
+
+    <h2>4. Analogies in Vector Space</h2>
+    <p>The famous relation: <span style="font-family: monospace; background:#eee; padding:2px 4px;">king − man + woman ≈ queen</span></p>
+    <p>Vector <b>differences</b> can encode relationships. If the "gender" direction is similar between (king→queen) and (man→woman), arithmetic recovers the right neighbor.</p>
+
+    <table border="1" cellpadding="10" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr>
+            <td width="50%" valign="top">
+                <svg viewBox="0 0 320 200" width="100%" style="max-width:360px;background:#f8fafc;border:1px solid #e2e8f0;">
+                    <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#2563eb"/></marker></defs>
+                    <line x1="40" y1="160" x2="120" y2="60" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow)"/>
+                    <text x="70" y="120" font-size="11" fill="#166534">man → king</text>
+                    <line x1="180" y1="160" x2="260" y2="60" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrow)"/>
+                    <text x="200" y="120" font-size="11" fill="#5b21b6">woman → queen</text>
+                    <line x1="120" y1="60" x2="260" y2="60" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4"/>
+                    <text x="155" y="48" font-size="10" fill="#64748b">parallel offsets</text>
+                    <circle cx="40" cy="160" r="5" fill="#16a34a"/><text x="28" y="178" font-size="11">man</text>
+                    <circle cx="120" cy="60" r="5" fill="#2563eb"/><text x="108" y="48" font-size="11">king</text>
+                    <circle cx="180" cy="160" r="5" fill="#db2777"/><text x="168" y="178" font-size="11">woman</text>
+                    <circle cx="260" cy="60" r="5" fill="#7c3aed"/><text x="248" y="48" font-size="11">queen</text>
+                </svg>
+            </td>
+            <td valign="top">
+                <p><b>Other analogies</b> (when training data supports them):</p>
+                <ul>
+                    <li>Paris − France + Germany ≈ Berlin</li>
+                    <li>programmer − Python + Java ≈ developer (approximate)</li>
+                </ul>
+                <p>Analogies are approximate — they work when the relationship direction is consistent in embedding space.</p>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>5. How Embeddings Are Learned</h2>
+    <ol>
+        <li><b>Initialize</b> random vectors for every token in the vocabulary.</li>
+        <li><b>Train</b> the model to predict the next token (or masked tokens).</li>
+        <li><b>Backpropagation</b> updates embedding rows along with other weights.</li>
+        <li>After billions of updates, tokens in similar contexts <b>cluster</b>; related meanings align.</li>
+    </ol>
+    <p>No human labels "royalty" or "gender." Structure <b>emerges</b> from the prediction objective.</p>
+
+    <hr>
+
+    <h2>6. Embedding Dimensions</h2>
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#f1f5f9"><th>Model</th><th>Embedding size</th></tr>
+        <tr><td>Small models</td><td>256–512</td></tr>
+        <tr><td>GPT-2</td><td>768</td></tr>
+        <tr><td>GPT-3</td><td>12,288</td></tr>
+        <tr><td>Large modern LLMs</td><td>4,096–8,192+</td></tr>
+    </table>
+    <p>More dimensions provide more capacity to separate meanings. Think of dimensions as axes in a huge space — not each literally interpretable, but collectively expressive.</p>
+
+    <h3>Embedding matrix scale (GPT-2)</h3>
+    <p>Vocabulary ~50,000 tokens × 768 dimensions ≈ <b>38 million</b> parameters in the embedding table alone.</p>
+    <div id="em-matrix-preview" style="overflow-x:auto;font-family:monospace;font-size:0.75em;line-height:1.2;"></div>
+
+    <hr>
+
+    <h2>7. Contextualized Embeddings (Preview)</h2>
+    <p><b>Problem:</b> static embeddings assign one vector per token type. But <b>"bank"</b> in "river bank" ≠ <b>"bank"</b> in "Bank of America."</p>
+    <p><b>Transformers fix this:</b> the same token ID starts from the same lookup vector, but layers of attention produce <b>context-dependent</b> representations. Lesson 3 covers the architecture; here we preview the idea.</p>
+
+    <table border="1" cellpadding="10" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#eff6ff"><th>Sentence</th><th>After transformer (conceptual)</th></tr>
+        <tr><td>I went to the <b>bank</b> to withdraw money.</td><td>"bank" vector shifts toward finance cluster</td></tr>
+        <tr><td>I sat on the <b>bank</b> of the river.</td><td>"bank" vector shifts toward nature/geography cluster</td></tr>
+    </table>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Static vs Contextual</h3>
+                <p><strong>Question:</strong> A model uses only a fixed embedding lookup with no transformer layers. Can it represent both meanings of "bank" simultaneously at one position?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">No — one token ID → one static vector. Contextual models combine the lookup with surrounding tokens via attention to produce different final vectors.</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>8. Interactive Sandbox: Embedding Explorer</h2>
+    <p>Explore a <b>simulated 24-dimensional embedding space</b> (projected to 2D for plotting). Vectors are hand-crafted to demonstrate real phenomena — production GPT-2 embeddings behave similarly but are noisier.</p>
+
+    <div style="margin-bottom:8px;">
+        <button type="button" class="em-tab" data-tab="space" style="padding:8px 14px;font-weight:bold;cursor:pointer;background:#dbeafe;border:1px solid #93c5fd;">1 — Space</button>
+        <button type="button" class="em-tab" data-tab="similar" style="padding:8px 14px;cursor:pointer;background:#fff;border:1px solid #ccc;">2 — Similarity</button>
+        <button type="button" class="em-tab" data-tab="analogy" style="padding:8px 14px;cursor:pointer;background:#fff;border:1px solid #ccc;">3 — Analogies</button>
+        <button type="button" class="em-tab" data-tab="context" style="padding:8px 14px;cursor:pointer;background:#fff;border:1px solid #ccc;">4 — Context</button>
+        <button type="button" class="em-tab" data-tab="hdim" style="padding:8px 14px;cursor:pointer;background:#fff;border:1px solid #ccc;">5 — Dimensions</button>
+        <button type="button" class="em-tab" data-tab="arith" style="padding:8px 14px;cursor:pointer;background:#fff;border:1px solid #ccc;">6 — Arithmetic</button>
+    </div>
+
+    <!-- Tab 1: Space -->
+    <div id="em-panel-space">
+        <table border="1" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;border:1px solid #ccc;">
+            <tr>
+                <td valign="top" style="padding:12px;">
+                    <label>Search token: <input type="text" id="em-search" placeholder="e.g. king" style="padding:6px;width:140px;"></label>
+                    <button type="button" id="em-search-btn" style="padding:6px 10px;cursor:pointer;">Highlight</button>
+                    <br><br>
+                    <label>Color by:
+                        <select id="em-color-mode" style="padding:4px;">
+                            <option value="category">Category</option>
+                            <option value="similarity">Similarity to query</option>
+                        </select>
+                    </label>
+                    <div id="em-neighbors" style="font-size:0.88em;margin-top:10px;max-width:200px;"></div>
+                </td>
+                <td valign="top" style="padding:8px;background:#fff;">
+                    <canvas id="em-canvas" width="480" height="300" style="border:1px solid #cbd5e1;cursor:crosshair;"></canvas>
+                    <p style="font-size:0.85em;color:#64748b;margin:6px 0;">Hover for token name. Click to select.</p>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Tab 2: Similarity -->
+    <div id="em-panel-similar" style="display:none;">
+        <label>Query token:
+            <select id="em-sim-query" style="padding:6px;min-width:160px;"></select>
+        </label>
+        <div id="em-sim-list" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Tab 3: Analogies -->
+    <div id="em-panel-analogy" style="display:none;">
+        <p><span style="font-family:monospace;">A − B + C = ?</span></p>
+        <select id="em-an-a" style="padding:4px;"></select> −
+        <select id="em-an-b" style="padding:4px;"></select> +
+        <select id="em-an-c" style="padding:4px;"></select>
+        <button type="button" id="em-an-run" style="padding:6px 12px;cursor:pointer;font-weight:bold;margin-left:8px;">Compute</button>
+        <br><br>
+        <button type="button" class="em-an-preset" data-a="king" data-b="man" data-c="woman" style="margin:2px;padding:4px 8px;cursor:pointer;">king − man + woman</button>
+        <button type="button" class="em-an-preset" data-a="Paris" data-b="France" data-c="Germany" style="margin:2px;padding:4px 8px;cursor:pointer;">Paris − France + Germany</button>
+        <button type="button" class="em-an-preset" data-a="programmer" data-b="Python" data-c="Java" style="margin:2px;padding:4px 8px;cursor:pointer;">programmer − Python + Java</button>
+        <div id="em-an-result" style="margin-top:14px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;font-family:monospace;font-size:0.9em;"></div>
+        <canvas id="em-an-canvas" width="400" height="180" style="border:1px solid #e2e8f0;margin-top:10px;display:block;"></canvas>
+    </div>
+
+    <!-- Tab 4: Context -->
+    <div id="em-panel-context" style="display:none;">
+        <p>Same token <b>bank</b>, different sentences — contextual vectors diverge after processing.</p>
+        <button type="button" class="em-ctx" data-ctx="finance" style="padding:8px;margin:4px;cursor:pointer;">Financial context</button>
+        <button type="button" class="em-ctx" data-ctx="river" style="padding:8px;margin:4px;cursor:pointer;">River context</button>
+        <div id="em-ctx-sentence" style="margin:12px 0;padding:10px;background:#fffbeb;border:1px solid #fde68a;"></div>
+        <table border="1" cellpadding="8" width="100%" style="border-collapse:collapse;">
+            <tr bgcolor="#f1f5f9"><th></th><th>Static lookup</th><th>After transformer (simulated)</th></tr>
+            <tr><td>Nearest concepts</td><td id="em-ctx-static">—</td><td id="em-ctx-contextual">—</td></tr>
+        </table>
+        <canvas id="em-ctx-canvas" width="420" height="220" style="border:1px solid #e2e8f0;margin-top:10px;"></canvas>
+    </div>
+
+    <!-- Tab 5: High-dimensional -->
+    <div id="em-panel-hdim" style="display:none;">
+        <label>Token A: <select id="em-dim-a" style="padding:4px;"></select></label>
+        <label style="margin-left:12px;">Token B: <select id="em-dim-b" style="padding:4px;"></select></label>
+        <br><br>
+        <label>Dimensions shown: <input type="range" id="em-dim-count" min="4" max="24" value="12" style="width:200px;"> <span id="em-dim-lbl">12</span> / 24 (GPT-2 uses 768)</label>
+        <div id="em-dim-bars" style="margin-top:12px;"></div>
+        <p id="em-dim-sim" style="font-family:monospace;margin-top:10px;"></p>
+    </div>
+
+    <!-- Tab 6: Arithmetic -->
+    <div id="em-panel-arith" style="display:none;">
+        <p>Free-form: <span style="font-family:monospace;">token₁ + token₂ − token₃ → nearest token</span></p>
+        <select id="em-ar-t1" style="padding:4px;"></select> +
+        <select id="em-ar-t2" style="padding:4px;"></select> −
+        <select id="em-ar-t3" style="padding:4px;"></select>
+        <button type="button" id="em-ar-run" style="padding:6px 12px;cursor:pointer;font-weight:bold;">Find nearest</button>
+        <button type="button" id="em-ar-einstein" style="padding:6px 12px;cursor:pointer;margin-left:6px;">Einstein + music − physics</button>
+        <div id="em-ar-result" style="margin-top:12px;padding:10px;background:#f0fdf4;border:1px solid #bbf7d0;"></div>
+    </div>
+
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;border-radius:4px;font-size:0.85em;margin-top:12px;">
+        <strong>Status:</strong> <span id="em-status">Select a tab and explore. Cosine similarity measures angle between vectors (1 = identical direction).</span>
+    </div>
+
+    <hr>
+
+    <h2>9. Activities</h2>
+    <ol>
+        <li><strong>Nearest neighbors:</strong> Search a token. List 5 neighbors. Do they make semantic sense?</li>
+        <li><strong>Analogy test:</strong> Run king − man + woman. Is the top result queen? Try a custom analogy.</li>
+        <li><strong>Surprising non-neighbors:</strong> Find two words you expect to be similar but are far apart — what might training data explain?</li>
+        <li><strong>Isolated token:</strong> Which token is farthest from the cluster center? Why?</li>
+        <li><strong>Context:</strong> Compare "bank" in both sentences. How far apart are the contextual vectors?</li>
+    </ol>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Embeddings</h3>
+                <p><strong>Question:</strong> Cosine similarity between "doctor" and "nurse" is 0.72; between "doctor" and "teacher" is 0.45. What does that suggest?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">Embeddings place doctor closer to nurse (shared healthcare context) than to teacher (education context). Similarity is graded, not binary.</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>Recommended Learning Resources</h2>
+    <ul>
+        <li><strong>Efficient Estimation of Word Representations (Word2Vec, Mikolov et al., 2013):</strong> Classic word embeddings and analogy arithmetic. <a href="https://arxiv.org/abs/1301.3781" target="_blank">arXiv paper</a></li>
+        <li><strong>GloVe (Pennington et al., 2014):</strong> Global co-occurrence statistics → vectors. <a href="https://nlp.stanford.edu/projects/glove/" target="_blank">Stanford GloVe</a></li>
+        <li><strong>Illustrated Transformer (Jay Alammar):</strong> How contextual embeddings emerge from attention. <a href="https://jalammar.github.io/illustrated-transformer/" target="_blank">Blog post</a></li>
+        <li><strong>Embedding Projector (TensorFlow):</strong> Interactive high-D visualization. <a href="https://projector.tensorflow.org/" target="_blank">projector.tensorflow.org</a></li>
+    </ul>
+
+<script>
+(function() {
+    const DIM = 24;
+    const CAT_COLORS = { royalty: '#2563eb', people: '#16a34a', food: '#ea580c', animals: '#7c3aed', geography: '#0891b2', tech: '#db2777', jobs: '#ca8a04', music: '#4f46e5', other: '#64748b' };
+
+    function vec() { return Array(DIM).fill(0); }
+    function add(a, b) { return a.map(function(v, i) { return v + b[i]; }); }
+    function sub(a, b) { return a.map(function(v, i) { return v - b[i]; }); }
+    function scale(a, s) { return a.map(function(v) { return v * s; }); }
+    function norm(a) { return Math.sqrt(a.reduce(function(s, v) { return s + v * v; }, 0)) || 1; }
+    function cosine(a, b) {
+        let dot = 0, na = 0, nb = 0;
+        for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; }
+        return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-9);
+    }
+    function nearest(queryVec, exclude, topK) {
+        const scores = [];
+        Object.keys(TOKENS).forEach(function(k) {
+            if (exclude && exclude.indexOf(k) >= 0) return;
+            scores.push({ token: k, sim: cosine(queryVec, TOKENS[k].v) });
+        });
+        scores.sort(function(a, b) { return b.sim - a.sim; });
+        return scores.slice(0, topK || 10);
+    }
+
+    // Hand-crafted vectors: clusters + analogy directions
+    const basis = {
+        royalty: (function() { const b = vec(); b[0] = 0.9; b[1] = 0.7; return b; })(),
+        male: (function() { const b = vec(); b[2] = 0.8; return b; })(),
+        female: (function() { const b = vec(); b[2] = -0.8; return b; })(),
+        person: (function() { const b = vec(); b[3] = 0.6; b[4] = 0.3; return b; })(),
+        food: (function() { const b = vec(); b[5] = -0.9; b[6] = -0.5; return b; })(),
+        animal: (function() { const b = vec(); b[7] = 0.5; b[8] = -0.4; return b; })(),
+        country: (function() { const b = vec(); b[9] = 0.7; b[10] = -0.2; return b; })(),
+        city: (function() { const b = vec(); b[11] = 0.6; b[12] = 0.5; return b; })(),
+        lang: (function() { const b = vec(); b[13] = 0.8; b[14] = 0.2; return b; })(),
+        job: (function() { const b = vec(); b[15] = 0.4; b[16] = 0.6; return b; })(),
+        finance: (function() { const b = vec(); b[17] = 0.85; b[18] = 0.1; return b; })(),
+        nature: (function() { const b = vec(); b[17] = -0.7; b[19] = 0.6; return b; })(),
+        music: (function() { const b = vec(); b[20] = 0.9; b[21] = 0.3; return b; })(),
+        science: (function() { const b = vec(); b[22] = 0.85; b[23] = -0.2; return b; })()
+    };
+
+    const TOKENS = {};
+    function reg(name, cat, parts, xy) {
+        let v = vec();
+        parts.forEach(function(p) { v = add(v, basis[p] || vec()); });
+        const n = norm(v);
+        for (let i = 0; i < DIM; i++) v[i] /= n;
+        TOKENS[name] = { id: 1000 + Object.keys(TOKENS).length, cat: cat, v: v, x: xy[0], y: xy[1] };
+    }
+
+    reg('king', 'royalty', ['royalty', 'male'], [0.82, 0.62]);
+    reg('queen', 'royalty', ['royalty', 'female'], [0.74, 0.60]);
+    reg('prince', 'royalty', ['royalty', 'male'], [0.78, 0.55]);
+    reg('monarch', 'royalty', ['royalty'], [0.80, 0.58]);
+    reg('throne', 'royalty', ['royalty'], [0.76, 0.52]);
+    reg('man', 'people', ['person', 'male'], [0.32, 0.12]);
+    reg('woman', 'people', ['person', 'female'], [0.28, 0.14]);
+    reg('person', 'people', ['person'], [0.30, 0.10]);
+    reg('teacher', 'jobs', ['person', 'job'], [0.22, 0.28]);
+    reg('doctor', 'jobs', ['person', 'job'], [0.35, 0.32]);
+    reg('nurse', 'jobs', ['person', 'job', 'female'], [0.38, 0.30]);
+    reg('apple', 'food', ['food'], [-0.52, -0.48]);
+    reg('carrot', 'food', ['food'], [-0.48, -0.55]);
+    reg('fruit', 'food', ['food'], [-0.50, -0.45]);
+    reg('dog', 'animals', ['animal'], [0.15, -0.42]);
+    reg('cat', 'animals', ['animal'], [0.12, -0.38]);
+    reg('kitten', 'animals', ['animal'], [0.10, -0.35]);
+    reg('pet', 'animals', ['animal'], [0.08, -0.40]);
+    reg('France', 'geography', ['country'], [-0.20, 0.72]);
+    reg('Germany', 'geography', ['country'], [-0.15, 0.68]);
+    reg('Paris', 'geography', ['city', 'country'], [-0.18, 0.78]);
+    reg('Berlin', 'geography', ['city', 'country'], [-0.12, 0.74]);
+    reg('Python', 'tech', ['lang'], [0.55, -0.15]);
+    reg('Java', 'tech', ['lang'], [0.52, -0.12]);
+    reg('JavaScript', 'tech', ['lang'], [0.58, -0.18]);
+    reg('programmer', 'tech', ['job', 'lang'], [0.50, -0.08]);
+    reg('developer', 'tech', ['job', 'lang'], [0.48, -0.05]);
+    reg('bank', 'other', ['finance', 'nature'], [0.05, 0.05]);
+    reg('money', 'other', ['finance'], [0.25, 0.18]);
+    reg('river', 'other', ['nature'], [-0.30, 0.22]);
+    reg('Einstein', 'other', ['science', 'person'], [0.42, 0.45]);
+    reg('physics', 'other', ['science'], [0.48, 0.40]);
+    reg('music', 'music', ['music'], [0.20, 0.52]);
+    reg('Mozart', 'music', ['music', 'person'], [0.18, 0.55]);
+
+    const TOKEN_LIST = Object.keys(TOKENS).sort();
+    const CTX = {
+        finance: {
+            sentence: 'I went to the bank to withdraw money.',
+            shift: basis.finance,
+            neighbors: ['money', 'finance concepts', 'account', 'deposit']
+        },
+        river: {
+            sentence: 'I sat on the bank of the river.',
+            shift: basis.nature,
+            neighbors: ['river', 'water', 'shore', 'mud']
+        }
+    };
+
+    let selected = 'king';
+    let hoverToken = null;
+
+    function fillSelect(sel, val) {
+        sel.innerHTML = TOKEN_LIST.map(function(t) {
+            return '<option value="' + t + '"' + (t === val ? ' selected' : '') + '>' + t + '</option>';
+        }).join('');
+    }
+
+    ['em-sim-query', 'em-an-a', 'em-an-b', 'em-an-c', 'em-dim-a', 'em-dim-b', 'em-ar-t1', 'em-ar-t2', 'em-ar-t3'].forEach(function(id) {
+        fillSelect(document.getElementById(id), id === 'em-an-a' ? 'king' : id === 'em-an-b' ? 'man' : id === 'em-an-c' ? 'woman' : 'king');
+    });
+
+    function plotBounds() {
+        return { pad: 36, w: 480, h: 300, minX: -0.7, maxX: 1.0, minY: -0.7, maxY: 0.9 };
+    }
+
+    function toCanvas(x, y, b) {
+        const px = b.pad + ((x - b.minX) / (b.maxX - b.minX)) * (b.w - 2 * b.pad);
+        const py = b.h - b.pad - ((y - b.minY) / (b.maxY - b.minY)) * (b.h - 2 * b.pad);
+        return { px: px, py: py };
+    }
+
+    function drawScatter(canvasId, options) {
+        options = options || {};
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const b = { pad: 28, w: canvas.width, h: canvas.height, minX: -0.7, maxX: 1.0, minY: -0.7, maxY: 0.9 };
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const query = options.query || selected;
+        const qv = TOKENS[query] ? TOKENS[query].v : null;
+        const colorMode = options.colorMode || document.getElementById('em-color-mode').value;
+
+        TOKEN_LIST.forEach(function(name) {
+            const t = TOKENS[name];
+            const p = toCanvas(t.x, t.y, b);
+            let color = CAT_COLORS[t.cat] || '#64748b';
+            let r = 5;
+            if (colorMode === 'similarity' && qv) {
+                const sim = cosine(qv, t.v);
+                const intensity = Math.max(0, (sim + 1) / 2);
+                color = 'hsl(220, 80%, ' + (35 + intensity * 40) + '%)';
+                r = 4 + intensity * 4;
+            }
+            if (name === query || name === options.highlight) {
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(p.px, p.py, r + 4, 0, Math.PI * 2);
+                ctx.stroke();
+                r += 2;
+            }
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
+            ctx.fill();
+            if (options.showLabels || name === query || name === hoverToken) {
+                ctx.fillStyle = '#1e293b';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(name, p.px + 6, p.py - 4);
+            }
+        });
+
+        if (options.extraPoints) {
+            options.extraPoints.forEach(function(ep) {
+                const p = toCanvas(ep.x, ep.y, b);
+                ctx.fillStyle = ep.color || '#dc2626';
+                ctx.beginPath();
+                ctx.arc(p.px, p.py, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#1e293b';
+                ctx.font = '10px sans-serif';
+                ctx.fillText(ep.label, p.px + 8, p.py + 4);
+            });
+        }
+    }
+
+    function showNeighbors(name) {
+        const el = document.getElementById('em-neighbors');
+        if (!TOKENS[name]) { el.innerHTML = '<span style="color:#b91c1c;">Token not found.</span>'; return; }
+        const nn = nearest(TOKENS[name].v, [name], 5);
+        el.innerHTML = '<strong>Nearest to "' + name + '":</strong><ol style="margin:6px 0;padding-left:18px;">' +
+            nn.map(function(n) { return '<li>' + n.token + ' (' + n.sim.toFixed(3) + ')</li>'; }).join('') + '</ol>';
+    }
+
+    function runSimilarity() {
+        const q = document.getElementById('em-sim-query').value;
+        const nn = nearest(TOKENS[q].v, [q], 10);
+        document.getElementById('em-sim-list').innerHTML =
+            '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;"><tr bgcolor="#f1f5f9"><th>Rank</th><th>Token</th><th>Cosine similarity</th></tr>' +
+            nn.map(function(n, i) {
+                return '<tr><td>' + (i + 1) + '</td><td>' + n.token + '</td><td>' + n.sim.toFixed(4) + '</td></tr>';
+            }).join('') + '</table>';
+        selected = q;
+        drawScatter('em-canvas');
+        document.getElementById('em-status').textContent = 'Top neighbors for "' + q + '" — doctor/nurse and doctor/teacher comparisons illustrate graded similarity.';
+    }
+
+    function runAnalogy() {
+        const a = document.getElementById('em-an-a').value;
+        const b = document.getElementById('em-an-b').value;
+        const c = document.getElementById('em-an-c').value;
+        const resultVec = add(sub(TOKENS[a].v, TOKENS[b].v), TOKENS[c].v);
+        const nn = nearest(resultVec, [a, b, c], 5);
+        const expected = { 'king-man-woman': 'queen', 'Paris-France-Germany': 'Berlin', 'programmer-Python-Java': 'developer' };
+        const key = a + '-' + b + '-' + c;
+        const exp = expected[key];
+        const hit = exp && nn[0].token === exp;
+        document.getElementById('em-an-result').innerHTML =
+            a + ' − ' + b + ' + ' + c + ' → nearest tokens:<br>' +
+            nn.map(function(n, i) { return (i + 1) + '. ' + n.token + ' (' + n.sim.toFixed(3) + ')'; }).join('<br>') +
+            (exp ? '<br><br>' + (hit ? '✓ Expected "' + exp + '" ranked first.' : '△ Expected "' + exp + '" — got "' + nn[0].token + '" (analogies are approximate).') : '');
+
+        const ac = document.getElementById('em-an-canvas');
+        const ctx = ac.getContext('2d');
+        ctx.clearRect(0, 0, ac.width, ac.height);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, ac.width, ac.height);
+        const pts = [
+            { x: 0.1, y: 0.7, label: b, color: '#16a34a' },
+            { x: 0.35, y: 0.3, label: a, color: '#2563eb' },
+            { x: 0.55, y: 0.7, label: c, color: '#db2777' },
+            { x: 0.8, y: 0.3, label: nn[0].token, color: hit ? '#16a34a' : '#ea580c' }
+        ];
+        pts.forEach(function(p, i) {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(40 + i * 90, 90, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#334155';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(p.label, 28 + i * 90, 115);
+        });
+        ctx.strokeStyle = '#94a3b8';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(48, 90); ctx.lineTo(168, 90); ctx.stroke();
+        ctx.fillStyle = '#64748b';
+        ctx.fillText('offset ≈ parallel', 75, 78);
+    }
+
+    function runContext(ctxKey) {
+        const c = CTX[ctxKey];
+        document.getElementById('em-ctx-sentence').innerHTML = c.sentence.replace('bank', '<mark style="background:#fde68a;">bank</mark>');
+        const staticNn = nearest(TOKENS.bank.v, ['bank'], 4).map(function(n) { return n.token; }).join(', ');
+        const contextualVec = add(TOKENS.bank.v, scale(c.shift, 0.55));
+        const n = norm(contextualVec);
+        for (let i = 0; i < DIM; i++) contextualVec[i] /= n;
+        const ctxNn = nearest(contextualVec, ['bank'], 4).map(function(n) { return n.token; }).join(', ');
+        document.getElementById('em-ctx-static').textContent = staticNn + ' (mixed finance/nature)';
+        document.getElementById('em-ctx-contextual').textContent = ctxNn;
+
+        const cv = add(TOKENS.bank.v, scale(c.shift, 0.55));
+        const cn = norm(cv);
+        for (let i = 0; i < DIM; i++) cv[i] /= cn;
+        TOKENS.bank._ctx = { x: TOKENS.bank.x + (ctxKey === 'finance' ? 0.22 : -0.28), y: TOKENS.bank.y + (ctxKey === 'finance' ? 0.18 : 0.20) };
+        drawScatter('em-ctx-canvas', {
+            highlight: 'bank',
+            showLabels: true,
+            extraPoints: [{ x: TOKENS.bank._ctx.x, y: TOKENS.bank._ctx.y, label: 'bank (contextual)', color: '#dc2626' }]
+        });
+        document.getElementById('em-status').textContent = 'Same token ID, different contextual vector after transformer layers.';
+    }
+
+    function runDimCompare() {
+        const a = document.getElementById('em-dim-a').value;
+        const b = document.getElementById('em-dim-b').value;
+        const n = parseInt(document.getElementById('em-dim-count').value, 10);
+        document.getElementById('em-dim-lbl').textContent = n;
+        let html = '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-family:monospace;font-size:0.8em;">';
+        html += '<tr bgcolor="#f1f5f9"><th>Dim</th><th>' + a + '</th><th>' + b + '</th></tr>';
+        for (let i = 0; i < n; i++) {
+            const va = TOKENS[a].v[i], vb = TOKENS[b].v[i];
+            html += '<tr><td>' + i + '</td><td style="background:hsl(220,70%,' + (50 + va * 30) + '%)">' + va.toFixed(3) + '</td>' +
+                '<td style="background:hsl(140,50%,' + (50 + vb * 30) + '%)">' + vb.toFixed(3) + '</td></tr>';
+        }
+        html += '</table>';
+        document.getElementById('em-dim-bars').innerHTML = html;
+        const sim = cosine(TOKENS[a].v, TOKENS[b].v);
+        document.getElementById('em-dim-sim').textContent = 'Cosine similarity (' + DIM + 'D): ' + sim.toFixed(4) + ' — with 768 dims in GPT-2, even more nuance fits.';
+    }
+
+    function runArith() {
+        const t1 = document.getElementById('em-ar-t1').value;
+        const t2 = document.getElementById('em-ar-t2').value;
+        const t3 = document.getElementById('em-ar-t3').value;
+        const rv = sub(add(TOKENS[t1].v, TOKENS[t2].v), TOKENS[t3].v);
+        const nn = nearest(rv, [t1, t2, t3], 5);
+        document.getElementById('em-ar-result').innerHTML = t1 + ' + ' + t2 + ' − ' + t3 + ' ≈ <strong>' + nn[0].token + '</strong> (sim ' + nn[0].sim.toFixed(3) + ')<br>Also nearby: ' +
+            nn.slice(1).map(function(n) { return n.token; }).join(', ');
+    }
+
+    function buildMatrixPreview() {
+        const row = TOKENS.king.v.slice(0, 16);
+        let html = '<div style="display:inline-block;">';
+        row.forEach(function(v, i) {
+            const light = 50 + v * 35;
+            html += '<span style="display:inline-block;width:22px;height:22px;background:hsl(220,60%,' + light + '%);margin:1px;" title="dim ' + i + ': ' + v.toFixed(3) + '"></span>';
+        });
+        html += '</div> <span style="font-size:0.85em;color:#64748b;">… row for "king" (16 of 768 dims)</span>';
+        document.getElementById('em-matrix-preview').innerHTML = html;
+    }
+
+    function drawStaticPlot() {
+        const canvas = document.getElementById('em-static-plot');
+        const ctx = canvas.getContext('2d');
+        const b = { pad: 30, w: 420, h: 260, minX: -0.7, maxX: 1.0, minY: -0.7, maxY: 0.9 };
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ['king', 'queen', 'prince', 'man', 'apple', 'carrot', 'dog'].forEach(function(name) {
+            const t = TOKENS[name];
+            const p = toCanvas(t.x, t.y, b);
+            ctx.fillStyle = CAT_COLORS[t.cat];
+            ctx.beginPath();
+            ctx.arc(p.px, p.py, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#334155';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(name, p.px + 7, p.py + 4);
+        });
+    }
+
+    function setTab(tab) {
+        document.querySelectorAll('.em-tab').forEach(function(btn) {
+            const on = btn.getAttribute('data-tab') === tab;
+            btn.style.fontWeight = on ? 'bold' : 'normal';
+            btn.style.background = on ? '#dbeafe' : '#fff';
+        });
+        ['space', 'similar', 'analogy', 'context', 'hdim', 'arith'].forEach(function(t) {
+            document.getElementById('em-panel-' + (t === 'similar' ? 'similar' : t)).style.display = t === tab ? 'block' : 'none';
+        });
+        if (tab === 'space') drawScatter('em-canvas');
+        if (tab === 'similar') runSimilarity();
+        if (tab === 'context') runContext('finance');
+        if (tab === 'hdim') runDimCompare();
+    }
+
+    document.querySelectorAll('.em-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() { setTab(btn.getAttribute('data-tab')); });
+    });
+    document.getElementById('em-search-btn').addEventListener('click', function() {
+        const q = document.getElementById('em-search').value.trim().toLowerCase();
+        const match = TOKEN_LIST.find(function(t) { return t.toLowerCase() === q; }) ||
+            TOKEN_LIST.find(function(t) { return t.toLowerCase().indexOf(q) >= 0; });
+        if (match) { selected = match; document.getElementById('em-search').value = match; showNeighbors(match); drawScatter('em-canvas'); }
+        else document.getElementById('em-neighbors').innerHTML = '<span style="color:#b91c1c;">Try: king, cat, Paris, doctor…</span>';
+    });
+    document.getElementById('em-color-mode').addEventListener('change', function() { drawScatter('em-canvas'); });
+    document.getElementById('em-sim-query').addEventListener('change', runSimilarity);
+    document.getElementById('em-an-run').addEventListener('click', runAnalogy);
+    document.querySelectorAll('.em-an-preset').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            document.getElementById('em-an-a').value = btn.getAttribute('data-a');
+            document.getElementById('em-an-b').value = btn.getAttribute('data-b');
+            document.getElementById('em-an-c').value = btn.getAttribute('data-c');
+            runAnalogy();
+        });
+    });
+    document.querySelectorAll('.em-ctx').forEach(function(btn) {
+        btn.addEventListener('click', function() { runContext(btn.getAttribute('data-ctx')); });
+    });
+    document.getElementById('em-dim-a').addEventListener('change', runDimCompare);
+    document.getElementById('em-dim-b').addEventListener('change', runDimCompare);
+    document.getElementById('em-dim-count').addEventListener('input', runDimCompare);
+    document.getElementById('em-ar-run').addEventListener('click', runArith);
+    document.getElementById('em-ar-einstein').addEventListener('click', function() {
+        document.getElementById('em-ar-t1').value = 'Einstein';
+        document.getElementById('em-ar-t2').value = 'music';
+        document.getElementById('em-ar-t3').value = 'physics';
+        runArith();
+    });
+
+    const mainCanvas = document.getElementById('em-canvas');
+    mainCanvas.addEventListener('mousemove', function(e) {
+        const rect = mainCanvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (mainCanvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (mainCanvas.height / rect.height);
+        const b = plotBounds();
+        let found = null;
+        TOKEN_LIST.forEach(function(name) {
+            const p = toCanvas(TOKENS[name].x, TOKENS[name].y, b);
+            if (Math.hypot(p.px - mx, p.py - my) < 10) found = name;
+        });
+        hoverToken = found;
+        drawScatter('em-canvas');
+    });
+    mainCanvas.addEventListener('click', function(e) {
+        if (hoverToken) { selected = hoverToken; showNeighbors(hoverToken); drawScatter('em-canvas'); }
+    });
+
+    buildMatrixPreview();
+    drawStaticPlot();
+    showNeighbors('king');
+    drawScatter('em-canvas');
+})();
+</script>
+
+</body>
+</html>

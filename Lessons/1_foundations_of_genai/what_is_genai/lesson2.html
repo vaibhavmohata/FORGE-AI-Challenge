@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Foundations: Lesson 2 - Generative vs Discriminative</title>
+</head>
+<body>
+
+    <h1>Foundations: Lesson 2 - Generative vs Discriminative</h1>
+
+    <p>Lesson 1 defined generative AI as sampling new content from a learned data distribution. This lesson formalizes the distinction between <b>discriminative</b> models that predict labels from inputs and <b>generative</b> models that model the data itself.</p>
+
+    <hr>
+
+    <h2>1. Discriminative Models</h2>
+    <p>A <b>discriminative model</b> estimates the conditional probability of a label given observed data. It learns decision boundaries that separate classes or regression surfaces that map features to scalars.</p>
+    <p>Training uses labeled pairs <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">(x, y)</span>. At inference, the model outputs one label or one number per input.</p>
+
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#f1f5f9">
+            <th>Task</th><th>Input</th><th>Output</th>
+        </tr>
+        <tr><td>Spam detection</td><td>Email text</td><td>spam or not spam</td></tr>
+        <tr><td>House price regression</td><td>Size, location, age</td><td>Price in dollars</td></tr>
+        <tr><td>Digit classification</td><td>16×16 grayscale image</td><td>Integer 0–9</td></tr>
+    </table>
+
+    <p>Objectives include cross-entropy for classification and MSE for regression — the same loss functions from the prerequisites unit.</p>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Discriminative Output</h3>
+                <p><strong>Question:</strong> A model maps a 28×28 MNIST image to one of ten digit classes. How many distinct output values can it return per image?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">Ten (digits 0–9). Discriminative classification restricts output to a fixed label set; it does not generate new pixel arrays.</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>2. Generative Models</h2>
+    <p>A <b>generative model</b> estimates the probability distribution of data <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(x)</span> or a conditional distribution <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(x | c)</span> given context <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">c</span>. It samples new instances from that distribution.</p>
+    <p>Training uses unlabeled or weakly labeled corpora. At inference, each sample can differ even when the prompt is identical.</p>
+
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#f1f5f9">
+            <th>Task</th><th>Input</th><th>Output</th>
+        </tr>
+        <tr><td>Text generation</td><td>Prompt string</td><td>New token sequence</td></tr>
+        <tr><td>Image generation</td><td>Text description</td><td>New image (pixel array)</td></tr>
+        <tr><td>Code generation</td><td>Natural-language spec</td><td>Source code string</td></tr>
+    </table>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Generative Variability</h3>
+                <p><strong>Question:</strong> You run the same prompt through a text generator five times and get five different paragraphs. Does this behavior indicate a discriminative or generative model?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">Generative. Sampling from P(x | prompt) produces stochastic outputs; a discriminative classifier returns the same argmax label for identical inputs (ignoring numerical noise).</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>3. Side-by-Side Comparison</h2>
+    <p>Same data domain, different tasks:</p>
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#f1f5f9">
+            <th>Query</th><th>Discriminative response</th><th>Generative response</th>
+        </tr>
+        <tr><td>Given a photo of an animal</td><td>Single label: cat</td><td>N/A — input is data, not a generation request</td></tr>
+        <tr><td>Given prompt "draw a cat"</td><td>N/A — no label to predict</td><td>New image sample (varies each run)</td></tr>
+        <tr><td>Given a sentence</td><td>Sentiment label: positive</td><td>N/A for classification</td></tr>
+        <tr><td>Given prompt "write a positive product review"</td><td>N/A</td><td>New review text (varies each run)</td></tr>
+    </table>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Task Classification</h3>
+                <p><strong>Question:</strong> A model summarizes a news article into three sentences. Is this primarily discriminative or generative?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">Generative. Many valid summaries exist for one article; the model generates a new token sequence rather than selecting one label from a fixed set.</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>4. Probability Objectives</h2>
+    <p>Discriminative and generative models optimize different probability objects.</p>
+
+    <h3>Discriminative: P(label | data)</h3>
+    <p>The model estimates <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(y | x)</span> — the probability of each label <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">y</span> given input <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">x</span>.</p>
+    <p>Example: for iris measurements <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">x = [sepal_length, petal_width]</span>, output might be <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(setosa|x) = 0.91, P(versicolor|x) = 0.07, P(virginica|x) = 0.02</span>. Prediction: argmax_y P(y|x).</p>
+
+    <h3>Generative: P(data)</h3>
+    <p>The model estimates <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(x)</span> — how likely an entire data instance is under the learned distribution.</p>
+    <p>Example: a language model assigns probability to each token sequence. Generation samples tokens so the joint sequence has high probability under <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(x_1, x_2, ..., x_T) = prod_t P(x_t | x_1, ..., x_{t-1})</span>.</p>
+
+    <p>Learning <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(x)</span> over high-dimensional spaces (images, long text) requires more parameters and data than learning <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(y|x)</span> for a small label set.</p>
+
+    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr>
+            <td>
+                <h3>Check Your Knowledge: Probability Object</h3>
+                <p><strong>Question:</strong> A softmax classifier outputs [0.05, 0.90, 0.05] over three iris species. What probability object did it model, and what is the predicted class?</p>
+                <details>
+                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
+                    <p style="margin-top: 5px;">P(y|x) — conditional class probabilities. Predicted class: index 1 (versicolor) because 0.90 is the maximum entry.</p>
+                </details>
+            </td>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>5. When to Use Each</h2>
+    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse;">
+        <tr bgcolor="#f1f5f9">
+            <th>Property</th><th>Discriminative</th><th>Generative</th>
+        </tr>
+        <tr><td>Task</td><td>Classify or predict a scalar</td><td>Create new samples</td></tr>
+        <tr><td>Output</td><td>Single label or number</td><td>High-dimensional content</td></tr>
+        <tr><td>Same input at inference</td><td>Same output (deterministic argmax)</td><td>Different samples (stochastic decoding)</td></tr>
+        <tr><td>Training objective</td><td><span style="font-family: monospace;">P(y|x)</span></td><td><span style="font-family: monospace;">P(x)</span> or <span style="font-family: monospace;">P(x|c)</span></td></tr>
+        <tr><td>Typical use</td><td>Spam filter, diagnosis, fraud detection</td><td>Drafting, image synthesis, code completion</td></tr>
+    </table>
+
+    <hr>
+
+    <h2>6. Interactive Sandbox: Iris Classifier vs Text Generator</h2>
+    <p>This sandbox contrasts two probability operations. <b>Discriminative mode</b> computes nearest-centroid classification on iris sepal length and petal width — a simplified <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(y|x)</span> via distance to class centroids. <b>Generative mode</b> samples flower descriptions from a fixed corpus — simulating stochastic output from <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">P(text | prompt)</span>.</p>
+    <p><strong>Instructions:</strong> Select a mode. In Discriminative mode, adjust sepal length and petal width sliders (or drag the yellow point on the plot), then click Classify. The same measurements always yield the same species. In Generative mode, click Generate Description repeatedly; each click returns a different text sample. Click Reset to restore defaults.</p>
+
+    <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border: 1px solid #ccc;">
+        <tr bgcolor="#fafafa">
+            <td align="center" valign="top" style="padding: 20px;">
+                <strong>Input Controls</strong><br><br>
+                <label>Mode:
+                    <select id="l2-mode" style="padding: 6px; width: 200px;">
+                        <option value="disc">Discriminative (iris classify)</option>
+                        <option value="gen">Generative (text sample)</option>
+                    </select>
+                </label>
+                <br><br>
+                <div id="l2-disc-controls">
+                    <canvas id="l2-canvas" width="240" height="200" style="border: 2px solid #333; background-color: #fff; display: block; cursor: crosshair;"></canvas>
+                    <br>
+                    <label>Sepal length: <span id="l2-sepal-lbl">5.0</span> cm<br>
+                    <input type="range" id="l2-sepal" min="4.3" max="7.9" step="0.1" value="5.0" style="width: 200px;"></label><br>
+                    <label>Petal width: <span id="l2-petal-lbl">0.2</span> cm<br>
+                    <input type="range" id="l2-petal" min="0.1" max="2.5" step="0.1" value="0.2" style="width: 200px;"></label><br><br>
+                    <button id="l2-classify" style="padding: 8px 15px; font-weight: bold; cursor: pointer; width: 100%;">Classify</button>
+                </div>
+                <div id="l2-gen-controls" style="display: none;">
+                    <p style="font-size: 0.9em;">Prompt: "Describe a flower."</p>
+                    <button id="l2-generate" style="padding: 8px 15px; font-weight: bold; cursor: pointer; width: 100%;">Generate Description</button>
+                </div>
+                <button id="l2-reset" style="padding: 8px 15px; cursor: pointer; background-color: #fee2e2; color: #b91c1c; border: 1px solid #ef4444; width: 100%; margin-top: 8px;">Reset</button>
+            </td>
+            <td valign="top" width="380" style="padding: 20px; background-color: #fff;">
+                <strong style="color: #1e40af;">Model Output</strong>
+                <hr style="border: 0; border-top: 1px solid #ddd; margin: 8px 0;">
+                <div id="l2-output" style="font-family: monospace; font-size: 0.9em; min-height: 200px;">
+                    Mode: discriminative<br>
+                    Adjust sliders and click Classify.
+                </div>
+                <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 4px; font-size: 0.85em; margin-top: 10px;">
+                    <strong>Status:</strong> <span id="l2-status">Discriminative: fixed mapping x -> argmax P(y|x). Generative: stochastic samples from P(text|prompt).</span>
+                </div>
+            </div>
+        </tr>
+    </table>
+
+    <hr>
+
+    <h2>Recommended Learning Resources</h2>
+    <ul>
+        <li><strong>Generative vs. Discriminative Classifiers (Ng &amp; Jordan, 2002):</strong> Compares asymptotic performance of both model families on shared tasks. <a href="https://ai.stanford.edu/~ang/papers/nips01-discriminativegenerative.pdf" target="_blank">Stanford PDF</a></li>
+        <li><strong>Pattern Recognition and Machine Learning, Section 1.5 (Bishop):</strong> Formal treatment of generative and discriminative approaches to classification. <a href="https://www.microsoft.com/en-us/research/publication/pattern-recognition-machine-learning/" target="_blank">Bishop PRML</a></li>
+        <li><strong>Discriminative vs Generative AI (Google Cloud):</strong> Practical overview of when to deploy each model type in production systems. <a href="https://cloud.google.com/discover/what-is-generative-ai" target="_blank">Google Cloud overview</a></li>
+    </ul>
+
+<script>
+(function() {
+    const IRIS = {
+        setosa:     { name: 'Setosa',     color: '#dc2626', centroid: [4.9, 0.25], pts: [[4.5,0.1],[4.7,0.2],[5.0,0.2],[5.2,0.15],[4.8,0.25]] },
+        versicolor: { name: 'Versicolor', color: '#2563eb', centroid: [5.9, 1.3],  pts: [[5.5,1.0],[5.8,1.2],[6.0,1.4],[5.7,1.1],[6.1,1.5]] },
+        virginica:  { name: 'Virginica',  color: '#16a34a', centroid: [6.5, 2.0],  pts: [[6.2,1.8],[6.5,2.0],[6.8,2.2],[6.3,1.9],[7.0,2.3]] }
+    };
+    const DESCRIPTIONS = [
+        'A delicate flower with purple petals and long green stems.',
+        'Soft pink blooms opening in morning light, dew on each petal.',
+        'A vibrant flower with a yellow center and crisp white petals.',
+        'Tiny wildflowers clustered in a meadow, lavender and gold.',
+        'A bold red hibiscus with wide petals catching sunlight.',
+        'Pale blue blossoms on a thin stem, almost translucent.',
+        'Orange marigolds packed tightly, earthy and bright.',
+        'A single lotus floating on still water, pale pink.',
+        'Feathery purple asters in late summer.',
+        'Cream-colored orchids with speckled throats.'
+    ];
+    let probe = { sepal: 5.0, petal: 0.2 };
+    let descIdx = 0;
+    let dragging = false;
+    const canvas = document.getElementById('l2-canvas');
+    const ctx = canvas.getContext('2d');
+
+    function dataToCanvas(sepal, petal) {
+        const pad = { l: 38, r: 10, t: 10, b: 28 };
+        const plotW = canvas.width - pad.l - pad.r;
+        const plotH = canvas.height - pad.t - pad.b;
+        return {
+            x: pad.l + ((sepal - 4.3) / (7.9 - 4.3)) * plotW,
+            y: pad.t + plotH - ((petal - 0.1) / (2.5 - 0.1)) * plotH,
+            pad, plotW, plotH
+        };
+    }
+
+    function canvasToData(cx, cy) {
+        const pad = { l: 38, r: 10, t: 10, b: 28 };
+        const plotW = canvas.width - pad.l - pad.r;
+        const plotH = canvas.height - pad.t - pad.b;
+        return {
+            sepal: Math.max(4.3, Math.min(7.9, 4.3 + ((cx - pad.l) / plotW) * (7.9 - 4.3))),
+            petal: Math.max(0.1, Math.min(2.5, 0.1 + ((pad.t + plotH - cy) / plotH) * (2.5 - 0.1)))
+        };
+    }
+
+    function classify(sepal, petal) {
+        let best = 'setosa', bestD = Infinity;
+        Object.keys(IRIS).forEach(function(k) {
+            const c = IRIS[k].centroid;
+            const d = (sepal - c[0]) ** 2 + (petal - c[1]) ** 2;
+            if (d < bestD) { bestD = d; best = k; }
+        });
+        return { species: IRIS[best], dist: Math.sqrt(bestD) };
+    }
+
+    function drawPlot() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const pad = { l: 38, r: 10, t: 10, b: 28 };
+        const plotW = canvas.width - pad.l - pad.r;
+        const plotH = canvas.height - pad.t - pad.b;
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(pad.l, pad.t, plotW, plotH);
+        Object.keys(IRIS).forEach(function(k) {
+            IRIS[k].pts.forEach(function(p) {
+                const pos = dataToCanvas(p[0], p[1]);
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = IRIS[k].color + '99';
+                ctx.fill();
+            });
+        });
+        const pr = dataToCanvas(probe.sepal, probe.petal);
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
+
+    function syncSliders() {
+        document.getElementById('l2-sepal').value = probe.sepal.toFixed(1);
+        document.getElementById('l2-petal').value = probe.petal.toFixed(1);
+        document.getElementById('l2-sepal-lbl').textContent = probe.sepal.toFixed(1);
+        document.getElementById('l2-petal-lbl').textContent = probe.petal.toFixed(1);
+    }
+
+    function runClassify() {
+        const r = classify(probe.sepal, probe.petal);
+        document.getElementById('l2-output').innerHTML =
+            'Mode: discriminative<br>' +
+            'Input: sepal=' + probe.sepal.toFixed(1) + ' cm, petal_width=' + probe.petal.toFixed(1) + ' cm<br>' +
+            'Output: ' + r.species.name + '<br>' +
+            'Distance to centroid: ' + r.dist.toFixed(3) + ' cm (feature units)';
+        document.getElementById('l2-status').textContent = 'Same input always maps to ' + r.species.name + ' (deterministic argmax over centroids).';
+    }
+
+    function runGenerate() {
+        const text = DESCRIPTIONS[descIdx % DESCRIPTIONS.length];
+        descIdx++;
+        document.getElementById('l2-output').innerHTML =
+            'Mode: generative<br>' +
+            'Prompt: "Describe a flower."<br>' +
+            'Sample ' + descIdx + ': "' + text + '"';
+        document.getElementById('l2-status').textContent = 'Each click samples a different description (stochastic output). Run count: ' + descIdx + '.';
+    }
+
+    function updateMode() {
+        const disc = document.getElementById('l2-mode').value === 'disc';
+        document.getElementById('l2-disc-controls').style.display = disc ? 'block' : 'none';
+        document.getElementById('l2-gen-controls').style.display = disc ? 'none' : 'block';
+        if (disc) {
+            drawPlot();
+            document.getElementById('l2-output').innerHTML = 'Mode: discriminative<br>Adjust sliders and click Classify.';
+        } else {
+            document.getElementById('l2-output').innerHTML = 'Mode: generative<br>Click Generate Description.';
+        }
+    }
+
+    function onDrag(e) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const cy = (e.clientY - rect.top) * (canvas.height / rect.height);
+        const d = canvasToData(cx, cy);
+        probe.sepal = d.sepal;
+        probe.petal = d.petal;
+        syncSliders();
+        drawPlot();
+    }
+
+    document.getElementById('l2-mode').addEventListener('change', updateMode);
+    document.getElementById('l2-sepal').addEventListener('input', function() {
+        probe.sepal = parseFloat(this.value);
+        document.getElementById('l2-sepal-lbl').textContent = probe.sepal.toFixed(1);
+        drawPlot();
+    });
+    document.getElementById('l2-petal').addEventListener('input', function() {
+        probe.petal = parseFloat(this.value);
+        document.getElementById('l2-petal-lbl').textContent = probe.petal.toFixed(1);
+        drawPlot();
+    });
+    document.getElementById('l2-classify').addEventListener('click', runClassify);
+    document.getElementById('l2-generate').addEventListener('click', runGenerate);
+    document.getElementById('l2-reset').addEventListener('click', function() {
+        probe = { sepal: 5.0, petal: 0.2 };
+        descIdx = 0;
+        syncSliders();
+        updateMode();
+        document.getElementById('l2-status').textContent = 'Discriminative: fixed mapping x -> argmax P(y|x). Generative: stochastic samples from P(text|prompt).';
+    });
+
+    canvas.addEventListener('mousedown', function(e) { dragging = true; onDrag(e); });
+    canvas.addEventListener('mousemove', function(e) { if (dragging) onDrag(e); });
+    window.addEventListener('mouseup', function() { dragging = false; });
+    canvas.addEventListener('touchstart', function(e) { e.preventDefault(); dragging = true; onDrag(e.touches[0]); }, { passive: false });
+    canvas.addEventListener('touchmove', function(e) { e.preventDefault(); if (dragging) onDrag(e.touches[0]); }, { passive: false });
+    window.addEventListener('touchend', function() { dragging = false; });
+
+    syncSliders();
+    drawPlot();
+})();
+</script>
+
+</body>
+</html>
