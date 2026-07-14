@@ -1,0 +1,602 @@
+<!DOCTYPE html><html><head><title>Intro to Audio Generation: Lesson 2 - Recipes vs. Records</title></head><body>
+<div class="genai-lesson-container">
+<style>
+
+        .genai-lesson-container {
+            line-height: 1.65; color: #1e293b; max-width: 820px; margin: 0 auto; padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .genai-lesson-container h1 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 10px; font-size: 1.5em; }
+        .genai-lesson-container h2 { color: #1e3a8a; margin-top: 36px; }
+        .genai-lesson-container h3 { color: #0f172a; margin-top: 22px; }
+        .genai-lesson-container hr { border: 0; border-top: 1px solid #e2e8f0; margin: 28px 0; }
+        .genai-lesson-container table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .genai-lesson-container th, .genai-lesson-container td {
+            border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; vertical-align: top;
+        }
+        .genai-lesson-container th { background: #f1f5f9; color: #334155; }
+        .genai-lesson-container code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em;
+        }
+        .genai-lesson-container .callout {
+            background: #f0fdf4; border-left: 4px solid #22c55e;
+            padding: 14px 16px; border-radius: 0 6px 6px 0; margin: 18px 0;
+        }
+        .genai-lesson-container .info-box, .genai-lesson-container .quiz {
+            background: #eff6ff; border: 1px solid #bfdbfe;
+            border-radius: 8px; padding: 14px 16px; margin: 18px 0;
+        }
+        .genai-lesson-container .quiz { background: #f4faf4; border-color: #bbf7d0; }
+        .genai-lesson-container .primer-box {
+            background: #faf5ff; border: 1px solid #e9d5ff;
+            border-radius: 8px; padding: 14px 16px; margin: 18px 0;
+        }
+        .genai-lesson-container .tool-box {
+            background: #fff7ed; border: 1px solid #fed7aa;
+            border-radius: 8px; padding: 16px 18px; margin: 20px 0;
+        }
+        .genai-lesson-container .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 14px 16px; border-radius: 0 6px 6px 0; margin: 18px 0;
+        }
+        .genai-lesson-container .eq-panel {
+            text-align: center; background: #eff6ff; border: 1px solid #bfdbfe;
+            border-radius: 6px; padding: 14px; margin: 16px 0;
+            font-family: Cambria, "Times New Roman", serif; font-size: 1.08em;
+        }
+        .genai-lesson-container .worked {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 14px 16px; margin: 16px 0; font-size: 0.95em;
+        }
+        .genai-lesson-container .shape-trail {
+            font-family: ui-monospace, Menlo, monospace; font-size: 0.88em;
+            background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 6px;
+            overflow-x: auto; margin: 12px 0;
+        }
+        .genai-lesson-container .roadmap {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 12px 14px; margin: 16px 0 8px; font-size: 0.9em;
+        }
+        .genai-lesson-container .roadmap ol { margin: 8px 0 0; padding-left: 1.3em; }
+        .genai-lesson-container .roadmap .here { font-weight: 700; color: #1e3a8a; }
+        .genai-lesson-container .bridge {
+            background: #f1f5f9; border-radius: 8px; padding: 12px 14px;
+            margin: 20px 0; font-size: 0.95em;
+        }
+        .genai-lesson-container .interactive-box {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 18px 20px; margin: 22px 0; box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
+        }
+        .genai-lesson-container .calc-box {
+            background: #fff; border: 1px dashed #94a3b8; border-radius: 8px;
+            padding: 14px 16px; margin: 16px 0;
+        }
+        .genai-lesson-container figure { margin: 20px 0; text-align: center; }
+        .genai-lesson-container figure img {
+            display: block; max-width: 100%; height: auto; margin: 0 auto;
+            border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;
+        }
+        .genai-lesson-container figcaption { font-size: 0.88em; color: #64748b; margin-top: 8px; line-height: 1.5; }
+        .genai-lesson-container button, .genai-lesson-container .chip {
+            padding: 8px 14px; margin: 4px 6px 4px 0; border: 1px solid #cbd5e1;
+            background: #fff; border-radius: 6px; cursor: pointer; font-weight: 500; color: #1e293b;
+            display: inline-block; font-size: 0.92em;
+        }
+        .genai-lesson-container button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .genai-lesson-container button.active, .genai-lesson-container .chip.selected {
+            background: #dbeafe; border-color: #93c5fd; color: #1e3a8a;
+        }
+        .genai-lesson-container a { color: #2563eb; }
+        .genai-lesson-container canvas {
+            display: block; width: 100%; max-width: 100%; background: #0f172a;
+            border-radius: 6px; margin-top: 10px;
+        }
+        .genai-lesson-container .viz-label { font-size: 0.85em; font-weight: 600; color: #64748b; margin-top: 12px; }
+        .genai-lesson-container details { margin: 12px 0; }
+        .genai-lesson-container summary { cursor: pointer; color: #2563eb; font-weight: 600; }
+        .genai-lesson-container .panel, .genai-lesson-container .token-stream, .genai-lesson-container .log {
+            background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 12px 14px;
+            font-family: ui-monospace, Menlo, monospace; font-size: 0.82em;
+            white-space: pre-wrap; min-height: 80px; margin-top: 10px;
+        }
+        .genai-lesson-container input[type="range"] { width: min(100%, 360px); vertical-align: middle; }
+        .genai-lesson-container input[type="text"], .genai-lesson-container input[type="number"] {
+            padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95em;
+        }
+        .genai-lesson-container .prob-row { display: flex; align-items: center; margin: 6px 0; font-size: 0.9em; }
+        .genai-lesson-container .prob-label { width: 140px; font-family: ui-monospace, Menlo, monospace; flex-shrink: 0; }
+        .genai-lesson-container .prob-bar-bg { flex: 1; background: #e2e8f0; border-radius: 4px; height: 16px; overflow: hidden; }
+        .genai-lesson-container .prob-bar { height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.35s ease; }
+        .genai-lesson-container .prob-bar.warn { background: #94a3b8; }
+        .genai-lesson-container .prob-pct { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+        .genai-lesson-container .pipe-stage {
+            display: inline-block; padding: 10px 12px; margin: 4px; border-radius: 8px;
+            border: 2px solid #cbd5e1; background: #f8fafc; font-size: 0.85em; font-weight: 600;
+            min-width: 100px; text-align: center; transition: all 0.3s;
+        }
+        .genai-lesson-container .pipe-stage.on { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; }
+        .genai-lesson-container .pipe-stage.done { border-color: #16a34a; background: #dcfce7; }
+        .genai-lesson-container .pipe-arrow { color: #94a3b8; font-weight: 700; }
+        .genai-lesson-container ol.guided li { margin-bottom: 8px; }
+
+</style>
+
+<h1>Recipes vs. Records (Symbolic vs. Raw Audio)</h1>
+
+<div class="roadmap"><strong>Unit roadmap — Intro to Audio Generation</strong>
+<ol>
+<li>1. Sound as waveforms &amp; spectrograms</li>
+<li class="here">2. Recipes (MIDI) vs records (raw audio) ← <em>you are here</em></li>
+<li>3. Audio tokens &amp; neural codecs</li>
+<li>4. Conditioning — steering generation</li>
+<li>5. Real systems (AudioCraft, Suno…) &amp; ethics</li>
+</ol></div>
+
+<p><strong>Goal:</strong> Master the two storage paradigms for music on a computer — <strong>symbolic event lists</strong> (MIDI, piano rolls) vs <strong>acoustic recordings</strong> (WAV) — including pitch math, matrix shapes, REMI-style tokenization, and size trade-offs with real numbers. You will identify what Bach Doodle conditions vs generates, bridging Lesson 1 spectrograms to Lesson 3 neural codecs.</p>
+
+<div class="bridge">
+<strong>From Lesson 1:</strong> A 3-minute stereo WAV ≈ 30 MB of PCM samples; a spectrogram compresses <em>visual</em> structure but still represents <em>sound</em>.
+<strong>This lesson:</strong> What if we never recorded the acoustic wave — only stored <em>which keys to press when</em>? That is symbolic music: tiny, editable, and LM-friendly.
+</div>
+
+<hr>
+
+<h2>0. Music primer for complete beginners</h2>
+<div class="primer-box">
+<p style="margin-top:0;">Read once if you have never played an instrument. Everything below is referenced in gen-AI papers.</p>
+
+<h3>Pitch names and the piano keyboard</h3>
+<p>Western pitches use letters <strong>A B C D E F G</strong>, repeating in higher and lower registers. On a keyboard, moving <strong>right</strong> = higher pitch. Black keys are sharps/flats (e.g. C♯ between C and D).</p>
+
+<h3>MIDI note numbers</h3>
+<p>Computers label pitches with integers. Convention: <strong>Middle C = MIDI 60</strong>. Each +1 is one <strong>semitone</strong> (adjacent key, white or black). An <strong>octave</strong> = 12 semitones; frequency ≈ doubles per octave.</p>
+
+<table>
+<tr><th>MIDI n</th><th>Name</th><th>Role</th></tr>
+<tr><td>57</td><td>A3</td><td>Below middle C</td></tr>
+<tr><td>60</td><td>C4</td><td>Middle C</td></tr>
+<tr><td>64</td><td>E4</td><td>Major third above C4</td></tr>
+<tr><td>69</td><td>A4</td><td>Concert tuning reference (440 Hz)</td></tr>
+<tr><td>72</td><td>C5</td><td>C4 up one octave</td></tr>
+</table>
+
+<h3>Time, beats, velocity</h3>
+<ul>
+<li><strong>Tempo (BPM)</strong> — beats per minute. At 120 BPM, one quarter-note beat = 0.5 s.</li>
+<li><strong>Duration</strong> — how long a note sounds (quarter, eighth, …).</li>
+<li><strong>Velocity (0–127)</strong> — MIDI’s proxy for “how hard you hit the key” → affects loudness and attack.</li>
+<li><strong>Chord</strong> — several pitches <em>simultaneously</em>. Unlike text (one token stream), music often has parallel events.</li>
+</ul>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 1 — MIDI arithmetic</h3>
+<p><strong>Q:</strong> Middle C is 60. What MIDI number is the C one octave higher? How many semitones between MIDI 60 and 67?</p>
+<details><summary>Show answer</summary>
+<p>One octave up: 60 + 12 = <strong>72 (C5)</strong>. 67 − 60 = <strong>7 semitones</strong> (C→G is a perfect fifth).</p>
+</details>
+</div>
+
+<hr>
+
+<h2>1. Pitch → frequency — the MIDI formula</h2>
+<p>To synthesize a MIDI note as audio (as in our piano-roll demo), convert note number n to frequency in Hz:</p>
+
+<div class="eq-panel">
+f (Hz) = 440 × 2<sup>(n − 69) / 12</sup>
+</div>
+<p>MIDI 69 = A4 = 440 Hz by definition. Each +12 adds one octave (×2 frequency).</p>
+
+<h3>Worked examples</h3>
+<div class="worked">
+<p><strong>A4 (n = 69):</strong> f = 440 × 2<sup>(69−69)/12</sup> = 440 × 1 = <strong>440.0 Hz</strong></p>
+<p><strong>C4 (n = 60):</strong> exponent = (60−69)/12 = −9/12 = −0.75 → f = 440 × 2<sup>−0.75</sup> ≈ 440 × 0.5946 ≈ <strong>261.6 Hz</strong></p>
+<p><strong>C5 (n = 72):</strong> f = 440 × 2<sup>3/12</sup> = 440 × 2<sup>0.25</sup> ≈ <strong>523.3 Hz</strong> (exactly 2× C4)</p>
+</div>
+
+<div class="calc-box">
+<h3 style="margin-top:0;">Interactive — MIDI → Hz</h3>
+<p>MIDI note number n: <input type="number" id="calc-midi" value="60" min="0" max="127" style="width:70px;">
+<button type="button" id="calc-midi-btn">Compute</button></p>
+<pre class="shape-trail" id="calc-midi-out" style="margin-bottom:0;">…</pre>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 2 — Compute frequency</h3>
+<p><strong>Q:</strong> What is the frequency of MIDI 81 (A5)? Hint: 81 − 69 = 12 = one octave above A4.</p>
+<details><summary>Show answer</summary>
+<p>f = 440 × 2<sup>12/12</sup> = 440 × 2 = <strong>880 Hz</strong>.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>2. MIDI as an event list — concrete 4-note melody</h2>
+<p><strong>MIDI files</strong> are not audio. They are timestamped messages: NOTE_ON, NOTE_OFF, program change, tempo, etc. A Digital Audio Workstation (DAW) “plays” MIDI by sending those events to a synthesizer.</p>
+
+<h3>Example melody (one note per beat, 4 beats)</h3>
+<table>
+<tr><th>Beat</th><th>Pitch</th><th>MIDI n</th><th>Approx Hz</th></tr>
+<tr><td>0</td><td>C4</td><td>60</td><td>261.6</td></tr>
+<tr><td>1</td><td>E4</td><td>64</td><td>329.6</td></tr>
+<tr><td>2</td><td>G4</td><td>67</td><td>392.0</td></tr>
+<tr><td>3</td><td>C5</td><td>72</td><td>523.3</td></tr>
+</table>
+
+<div class="token-stream">t=0.00s  NOTE_ON  ch=0  pitch=60  vel=90
+t=0.50s  NOTE_OFF ch=0  pitch=60
+t=0.50s  NOTE_ON  ch=0  pitch=64  vel=90
+t=1.00s  NOTE_OFF ch=0  pitch=64
+t=1.00s  NOTE_ON  ch=0  pitch=67  vel=90
+t=1.50s  NOTE_OFF ch=0  pitch=67
+t=1.50s  NOTE_ON  ch=0  pitch=72  vel=90
+t=2.00s  NOTE_OFF ch=0  pitch=72</div>
+<p style="font-size:0.9em;color:#64748b;">8 messages, ~120 bytes on disk for this fragment — versus ~352,800 PCM samples for 2 s @ 44.1 kHz mono (705 KB).</p>
+
+<h3>Same melody as a piano-roll matrix</h3>
+<p>Quantize time into columns (here 4 steps). Rows = pitch classes in range. Cell value = off (0) or on (1); richer rolls store <strong>velocity 0–127</strong> instead of binary.</p>
+
+<div class="shape-trail">PianoRoll[pitch_index, time_step]  — shape (128, T) full range
+Mini grid for our melody (rows C4..C5 only):
+
+        t=0  t=1  t=2  t=3
+C5       0    0    0    1
+G4       0    0    1    0
+E4       0    1    0    0
+C4       1    0    0    0
+
+Sparse active cells: 4  |  Dense binary matrix still mostly zeros</div>
+
+<figure>
+<img src="assets/m1_piano_roll.png" alt="Piano roll patterns">
+<figcaption>Piano roll: pitch × time. Repeating motifs visible as patterns. Adapted from <em>Machine Learning for Music</em> Module 1, used with instructor permission.</figcaption>
+</figure>
+
+<figure>
+<img src="assets/m1_piano_roll_velocity.png" alt="Velocity on piano roll">
+<figcaption>Cell brightness can encode MIDI velocity (dynamics). Adapted from Module 1, used with instructor permission.</figcaption>
+</figure>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 3 — Matrix shape</h3>
+<p><strong>Q:</strong> A piano roll spans MIDI pitches 21–108 (88 keys) at 512 time steps with binary on/off. What is the matrix shape? How many entries if stored dense?</p>
+<details><summary>Show answer</summary>
+<p>Rows = 108 − 21 + 1 = <strong>88</strong>. Shape = <strong>(88, 512)</strong>. Dense entries = 88 × 512 = <strong>45,056</strong> (still tiny vs WAV).</p>
+</details>
+</div>
+
+<hr>
+
+<h2>3. Symbolic tokenization for language models (REMI-style)</h2>
+<p>Transformers want a 1-D token sequence. Raw piano-roll matrices are 2-D and sparse. <strong>REMI</strong> (Huang &amp; Yang, 2020) and cousins flatten events into ordered tokens: <code>[Bar, Position, Pitch, Duration, Velocity]</code> repeated per note.</p>
+
+<h3>Walk-through — our 4-note melody in one bar</h3>
+<p>Assume 4/4 time, 4 positions per bar (quarter notes), velocity 90, each note duration = 1 position.</p>
+
+<table>
+<tr><th>Step</th><th>Token</th><th>Meaning</th></tr>
+<tr><td>1</td><td>Bar_0</td><td>Start of bar 0</td></tr>
+<tr><td>2</td><td>Pos_0</td><td>Beat position 0</td></tr>
+<tr><td>3</td><td>Pitch_60</td><td>C4</td></tr>
+<tr><td>4</td><td>Dur_1</td><td>1 grid unit long</td></tr>
+<tr><td>5</td><td>Vel_90</td><td>Loudness level</td></tr>
+<tr><td>6</td><td>Pos_1</td><td>Beat position 1</td></tr>
+<tr><td>7</td><td>Pitch_64</td><td>E4</td></tr>
+<tr><td>8</td><td>Dur_1</td><td>…</td></tr>
+<tr><td>9</td><td>Vel_90</td><td>…</td></tr>
+<tr><td colspan="3"><em>… continues for G4 @ Pos_2, C5 @ Pos_3 …</em></td></tr>
+</table>
+
+<div class="shape-trail">token_sequence length ≈ 1 + 4 × 4 = 17 tokens (one Bar + 4 notes × 4 fields)
+vocab size ≈ bars + positions + 128 pitches + durations + 128 velocities (thousands, not millions)</div>
+
+<p>Compared to Lesson 1: 2 s of WAV @ 44.1 kHz → 88,200 samples. Same melody as REMI → ~17 discrete tokens. That is why symbolic LMs (MuseNet-style, music transformers) start here — before tackling audio codecs in Lesson 3.</p>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 4 — Token count</h3>
+<p><strong>Q:</strong> A bar contains 8 eighth-notes, each encoded as Pos + Pitch + Dur + Vel after one Bar token. How many tokens?</p>
+<details><summary>Show answer</summary>
+<p>1 + 8 × 4 = <strong>33 tokens</strong>.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>4. Trade-offs with numbers — recipe vs record</h2>
+
+<table>
+<tr><th></th><th>Symbolic (MIDI / REMI)</th><th>Raw audio (WAV PCM)</th></tr>
+<tr><td><strong>Typical size</strong></td><td>~2–50 KB for a pop song sketch</td><td>~30 MB for 3 min stereo CD-quality</td></tr>
+<tr><td><strong>Ratio (rough)</strong></td><td colspan="2">WAV often <strong>1,000×–10,000×</strong> larger than MIDI for the same musical “content”</td></tr>
+<tr><td><strong>Edit key / tempo</strong></td><td>Change pitch or BPM fields; re-render</td><td>Requires source separation or re-record</td></tr>
+<tr><td><strong>Realism</strong></td><td>Depends on synthesizer / sample library</td><td>Captures room, breath, guitar squeak</td></tr>
+<tr><td><strong>Gen-AI fit</strong></td><td>Discrete tokens → standard LM</td><td>Needs codec (Lesson 3) or spectrogram diffusion</td></tr>
+<tr><td><strong>DAW workflow</strong></td><td>Producers prefer MIDI for editing arrangement</td><td>Final mix exported to WAV/MP3</td></tr>
+</table>
+
+<div class="worked">
+<strong>Numerical snapshot — same 4-note, 2 s phrase:</strong>
+<ul>
+<li>MIDI event list above: ~<strong>120 B</strong></li>
+<li>PCM mono 44.1 kHz × 2 s: 88,200 samples × 2 B ≈ <strong>172 KB</strong></li>
+<li>Size ratio ≈ 172,000 / 120 ≈ <strong>1,400×</strong></li>
+</ul>
+</div>
+
+<figure>
+<img src="assets/m4_waveform_side.png" alt="Raw waveform">
+<figcaption>Rendered WAV — every millisecond of acoustic detail, no editable “note list” inside. Adapted from <em>Machine Learning for Music</em> Module 4, used with instructor permission.</figcaption>
+</figure>
+
+<div class="callout">
+<strong>Metaphor:</strong> MIDI is a <em>recipe</em> (ingredients + steps). WAV is a <em>video of the finished dish</em> — delicious, but you cannot easily swap salt for sugar after baking.
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 5 — Engineering choice</h3>
+<p><strong>Q:</strong> You are building a tool to transpose a melody to a different key and swap piano for strings. Start from MIDI or a studio WAV? Estimate file sizes for a 90 s sketch.</p>
+<details><summary>Show answer</summary>
+<p><strong>MIDI</strong> — transpose = add semitones to pitch events; swap instrument = change program number. Size ~5–20 KB. WAV stereo 90 s ≈ 90 × 44,100 × 2 × 2 B ≈ <strong>15.9 MB</strong>; editing timbre/key is painful without transcription.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>5. Guided lab (in-page): piano-roll recipe board</h2>
+<p>Click cells (pitch ↑, time →). Toggle <strong>MIDI events</strong> vs <strong>raw footprint</strong> to see the size gap Lesson 1 taught you to compute.</p>
+
+<div class="interactive-box">
+        <div>
+            <button type="button" class="primary" id="pr-play">Play melody</button>
+            <button type="button" id="pr-clear">Clear</button>
+            <button type="button" class="active" id="pr-view-midi">Show MIDI events</button>
+            <button type="button" id="pr-view-wave">Show raw footprint</button>
+        </div>
+        <p style="font-size:0.88em;color:#64748b;margin:10px 0 6px;">Pitch ↑ · Time → · Click to toggle notes</p>
+        <canvas id="pr-canvas" width="760" height="280"></canvas>
+        <div class="panel" id="pr-panel">Click notes on the grid…</div>
+    </div>
+
+<hr>
+
+<h2>6. Guided lab — Google Bach Doodle (Coconet / Magenta)</h2>
+<div class="tool-box">
+<p style="margin-top:0;"><strong>Live model:</strong> <a href="https://www.google.com/doodles/celebrating-johann-sebastian-bach" target="_blank" rel="noopener">Google Doodle — Celebrating J.S. Bach</a> · Technical background: <a href="https://magenta.withgoogle.com/coconet" target="_blank" rel="noopener">Magenta Coconet</a> (Huang et al., counterpoint-infilling CNN + Gibbs sampling; later Doodle interface).</p>
+
+<h3>What the model actually does</h3>
+<p><strong>Coconet</strong> is trained on Bach chorales encoded as <strong>symbolic score tensors</strong> — not waveforms. Given some voices filled in, it infills missing voices harmonically in Bach style. The Doodle lets you enter a soprano melody; the model generates alto/tenor/bass <em>note events</em> conditioned on yours.</p>
+
+<table>
+<tr><th>Component</th><th>In Bach Doodle</th></tr>
+<tr><td><strong>Condition (input you control)</strong></td><td>Your melody notes (pitch + timing on the staff/grid)</td></tr>
+<tr><td><strong>Generation target (model output)</strong></td><td>Harmony voices — the accompanying parts that fit Bach-like rules</td></tr>
+<tr><td><strong>Representation</strong></td><td>Discrete pitch/time events (symbolic) — same family as MIDI</td></tr>
+<tr><td><strong>Not used</strong></td><td>Raw PCM, spectrograms, or mel bins</td></tr>
+</table>
+
+<ol class="guided">
+<li>Compose 1–2 measures in the Doodle (4–8 notes is enough).</li>
+<li>Run harmonization. Listen: which parts were <em>yours</em> vs <em>added</em>?</li>
+<li>Change one melody note; regenerate. Note which harmony voices move — that is <strong>conditioning sensitivity</strong>.</li>
+<li>In your notebook, write explicitly:<br>
+<strong>Condition =</strong> ___________________<br>
+<strong>Generation target =</strong> ___________________<br>
+<strong>Why symbolic, not WAV?</strong> ___________________</li>
+<li>Connect to REMI: the model’s internal state is closer to piano-roll tensors than to Lesson 1 spectrograms.</li>
+</ol>
+</div>
+
+<div class="tool-box">
+<p style="margin-top:0;"><strong>Optional:</strong> <a href="https://musiclab.chromeexperiments.com/Song-Maker/" target="_blank" rel="noopener">Chrome Music Lab — Song Maker</a> — practice reading pitch × time grids (no ML, but builds piano-roll literacy).</p>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 6 — Bach Doodle mechanics</h3>
+<p><strong>Q:</strong> Is Coconet generating waveform samples, mel spectrogram frames, or symbolic note events? What is the condition?</p>
+<details><summary>Show answer</summary>
+<p><strong>Symbolic note events</strong> (multi-voice score). <strong>Condition</strong> = the user-provided melody (fixed voices); <strong>target</strong> = infilled harmony voices.</p>
+</details>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 7 — Compare paradigms</h3>
+<p><strong>Q:</strong> Name one task MIDI handles better than WAV and one task WAV handles better than MIDI.</p>
+<details><summary>Show answer</summary>
+<p>MIDI better: transposition, tempo change, instrument swap. WAV better: capturing human vocal timbre, room reverb, acoustic imperfection.</p>
+</details>
+</div>
+
+<div class="bridge">
+<strong>Next — Lesson 3:</strong> Realistic music generation (vocals, drums, production) needs audio, not just MIDI. Neural <strong>codecs</strong> (EnCodec, etc.) compress WAV into short discrete token sequences — making raw audio finally look like language tokens to an LM. That is the bridge Meta AudioCraft uses between PCM and MusicGen.
+<br>→ <a href="lesson3.html">Lesson 3: The Sound Dictionary</a>
+· <a href="lesson1.html">← Lesson 1</a>
+</div>
+
+<hr>
+<h2>Further reading</h2>
+<ul>
+<li><em>Machine Learning for Music</em> Module 1 — MIDI, piano rolls (figures above), instructor permission.</li>
+<li>Huang &amp; Yang (2020) — REMI tokenization for music LMs.</li>
+<li>Huang et al. — <a href="https://magenta.withgoogle.com/coconet" target="_blank" rel="noopener">Coconet / Bach Doodle</a> (symbolic harmonization).</li>
+</ul>
+
+</div>
+
+<script>
+(function () {
+    var ROWS = 12;
+    var COLS = 16;
+    var NOTE_NAMES = ['C5','B4','A4','G4','F4','E4','D4','C4','B3','A3','G3','F3'];
+    var MIDI_BASE = [72,71,69,67,65,64,62,60,59,57,55,53];
+    var grid = [];
+    for (var r = 0; r < ROWS; r++) {
+        grid[r] = [];
+        for (var c = 0; c < COLS; c++) grid[r][c] = 0;
+    }
+    [[7,0],[5,2],[4,4],[5,6],[7,8],[7,10],[5,12],[4,14]].forEach(function (p) {
+        grid[p[0]][p[1]] = 1;
+    });
+
+    var canvas = document.getElementById('pr-canvas');
+    var ctx = canvas.getContext('2d');
+    var panel = document.getElementById('pr-panel');
+    var view = 'midi';
+    var audioCtx = null;
+
+    function cellW() { return canvas.width / COLS; }
+    function cellH() { return canvas.height / ROWS; }
+
+    function draw() {
+        var cw = cellW(), ch = cellH();
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        for (var r = 0; r < ROWS; r++) {
+            for (var c = 0; c < COLS; c++) {
+                var x = c * cw, y = r * ch;
+                if (grid[r][c]) {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2);
+                } else {
+                    ctx.strokeStyle = '#334155';
+                    ctx.strokeRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
+                }
+            }
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px sans-serif';
+            ctx.fillText(NOTE_NAMES[r], 4, r * ch + ch * 0.65);
+        }
+        updatePanel();
+    }
+
+    function countNotes() {
+        var n = 0;
+        for (var r = 0; r < ROWS; r++)
+            for (var c = 0; c < COLS; c++)
+                if (grid[r][c]) n++;
+        return n;
+    }
+
+    function midiEvents() {
+        var lines = [];
+        for (var c = 0; c < COLS; c++) {
+            for (var r = 0; r < ROWS; r++) {
+                if (grid[r][c]) {
+                    lines.push('t=' + c + ' NOTE_ON  pitch=' + MIDI_BASE[r] + ' (' + NOTE_NAMES[r] + ') vel=90');
+                    lines.push('t=' + (c + 1) + ' NOTE_OFF pitch=' + MIDI_BASE[r]);
+                }
+            }
+        }
+        return lines;
+    }
+
+    function updatePanel() {
+        var notes = countNotes();
+        if (view === 'midi') {
+            var ev = midiEvents();
+            panel.textContent = 'SYMBOLIC / MIDI-like events (' + ev.length + ' lines, ~' + (ev.length * 12) + ' bytes)\n\n' +
+                (ev.slice(0, 14).join('\n') || '(empty)') +
+                (ev.length > 14 ? '\n…' : '');
+        } else {
+            var seconds = COLS * 0.25;
+            var samples = Math.round(seconds * 44100);
+            var bytes = samples * 2;
+            panel.textContent =
+                'RAW AUDIO footprint (estimate if you render this grid to WAV)\n\n' +
+                'Duration: ' + seconds.toFixed(2) + ' s at 44.1 kHz mono\n' +
+                'Samples: ' + samples.toLocaleString() + '\n' +
+                'File size ≈ ' + (bytes / 1024).toFixed(1) + ' KB (PCM 16-bit)\n\n' +
+                'Same ' + notes + ' notes as MIDI above, but the WAV stores every amplitude sample —\n' +
+                'not just which keys were pressed.';
+        }
+    }
+
+    canvas.addEventListener('click', function (e) {
+        var rect = canvas.getBoundingClientRect();
+        var x = (e.clientX - rect.left) * (canvas.width / rect.width);
+        var y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        var c = Math.floor(x / cellW());
+        var r = Math.floor(y / cellH());
+        if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+            grid[r][c] = grid[r][c] ? 0 : 1;
+            draw();
+        }
+    });
+
+    function play() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        var step = 0.25;
+        var t0 = audioCtx.currentTime + 0.05;
+        for (var c = 0; c < COLS; c++) {
+            for (var r = 0; r < ROWS; r++) {
+                if (!grid[r][c]) continue;
+                var osc = audioCtx.createOscillator();
+                var g = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = 440 * Math.pow(2, (MIDI_BASE[r] - 69) / 12);
+                g.gain.setValueAtTime(0.0001, t0 + c * step);
+                g.gain.exponentialRampToValueAtTime(0.15, t0 + c * step + 0.02);
+                g.gain.exponentialRampToValueAtTime(0.0001, t0 + c * step + step * 0.9);
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                osc.start(t0 + c * step);
+                osc.stop(t0 + c * step + step);
+            }
+        }
+    }
+
+    document.getElementById('pr-play').addEventListener('click', play);
+    document.getElementById('pr-clear').addEventListener('click', function () {
+        for (var r = 0; r < ROWS; r++)
+            for (var c = 0; c < COLS; c++) grid[r][c] = 0;
+        draw();
+    });
+    document.getElementById('pr-view-midi').addEventListener('click', function () {
+        view = 'midi';
+        this.classList.add('active');
+        document.getElementById('pr-view-wave').classList.remove('active');
+        updatePanel();
+    });
+    document.getElementById('pr-view-wave').addEventListener('click', function () {
+        view = 'wave';
+        this.classList.add('active');
+        document.getElementById('pr-view-midi').classList.remove('active');
+        updatePanel();
+    });
+
+    draw();
+})();
+</script>
+
+<script>
+(function () {
+    var NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    function midiName(n) {
+        var octave = Math.floor(n / 12) - 1;
+        return NAMES[n % 12] + octave;
+    }
+    function midiToHz(n) {
+        return 440 * Math.pow(2, (n - 69) / 12);
+    }
+    var input = document.getElementById('calc-midi');
+    var out = document.getElementById('calc-midi-out');
+    function update() {
+        var n = parseInt(input.value, 10);
+        if (isNaN(n) || n < 0 || n > 127) {
+            out.textContent = 'Enter MIDI 0–127';
+            return;
+        }
+        var f = midiToHz(n);
+        out.textContent =
+            'n = ' + n + '  →  ' + midiName(n) + '\n' +
+            'f = 440 × 2^(' + (n - 69) + '/12)\n' +
+            'f ≈ ' + f.toFixed(2) + ' Hz';
+    }
+    document.getElementById('calc-midi-btn').addEventListener('click', update);
+    input.addEventListener('input', update);
+    update();
+})();
+</script>
+
+</body></html>

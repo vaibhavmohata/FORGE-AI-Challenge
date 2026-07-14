@@ -1,0 +1,650 @@
+<!DOCTYPE html><html><head><title>Intro to Audio Generation: Lesson 1 - Turning Sound into Pixels</title></head><body>
+<div class="genai-lesson-container">
+<style>
+
+        .genai-lesson-container {
+            line-height: 1.65; color: #1e293b; max-width: 820px; margin: 0 auto; padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .genai-lesson-container h1 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 10px; font-size: 1.5em; }
+        .genai-lesson-container h2 { color: #1e3a8a; margin-top: 36px; }
+        .genai-lesson-container h3 { color: #0f172a; margin-top: 22px; }
+        .genai-lesson-container hr { border: 0; border-top: 1px solid #e2e8f0; margin: 28px 0; }
+        .genai-lesson-container table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .genai-lesson-container th, .genai-lesson-container td {
+            border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; vertical-align: top;
+        }
+        .genai-lesson-container th { background: #f1f5f9; color: #334155; }
+        .genai-lesson-container code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em;
+        }
+        .genai-lesson-container .callout {
+            background: #f0fdf4; border-left: 4px solid #22c55e;
+            padding: 14px 16px; border-radius: 0 6px 6px 0; margin: 18px 0;
+        }
+        .genai-lesson-container .info-box, .genai-lesson-container .quiz {
+            background: #eff6ff; border: 1px solid #bfdbfe;
+            border-radius: 8px; padding: 14px 16px; margin: 18px 0;
+        }
+        .genai-lesson-container .quiz { background: #f4faf4; border-color: #bbf7d0; }
+        .genai-lesson-container .primer-box {
+            background: #faf5ff; border: 1px solid #e9d5ff;
+            border-radius: 8px; padding: 14px 16px; margin: 18px 0;
+        }
+        .genai-lesson-container .tool-box {
+            background: #fff7ed; border: 1px solid #fed7aa;
+            border-radius: 8px; padding: 16px 18px; margin: 20px 0;
+        }
+        .genai-lesson-container .warn-box {
+            background: #fffbeb; border-left: 4px solid #f59e0b;
+            padding: 14px 16px; border-radius: 0 6px 6px 0; margin: 18px 0;
+        }
+        .genai-lesson-container .eq-panel {
+            text-align: center; background: #eff6ff; border: 1px solid #bfdbfe;
+            border-radius: 6px; padding: 14px; margin: 16px 0;
+            font-family: Cambria, "Times New Roman", serif; font-size: 1.08em;
+        }
+        .genai-lesson-container .worked {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 14px 16px; margin: 16px 0; font-size: 0.95em;
+        }
+        .genai-lesson-container .shape-trail {
+            font-family: ui-monospace, Menlo, monospace; font-size: 0.88em;
+            background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 6px;
+            overflow-x: auto; margin: 12px 0;
+        }
+        .genai-lesson-container .roadmap {
+            background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 12px 14px; margin: 16px 0 8px; font-size: 0.9em;
+        }
+        .genai-lesson-container .roadmap ol { margin: 8px 0 0; padding-left: 1.3em; }
+        .genai-lesson-container .roadmap .here { font-weight: 700; color: #1e3a8a; }
+        .genai-lesson-container .bridge {
+            background: #f1f5f9; border-radius: 8px; padding: 12px 14px;
+            margin: 20px 0; font-size: 0.95em;
+        }
+        .genai-lesson-container .interactive-box {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 18px 20px; margin: 22px 0; box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
+        }
+        .genai-lesson-container .calc-box {
+            background: #fff; border: 1px dashed #94a3b8; border-radius: 8px;
+            padding: 14px 16px; margin: 16px 0;
+        }
+        .genai-lesson-container figure { margin: 20px 0; text-align: center; }
+        .genai-lesson-container figure img {
+            display: block; max-width: 100%; height: auto; margin: 0 auto;
+            border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;
+        }
+        .genai-lesson-container figcaption { font-size: 0.88em; color: #64748b; margin-top: 8px; line-height: 1.5; }
+        .genai-lesson-container button, .genai-lesson-container .chip {
+            padding: 8px 14px; margin: 4px 6px 4px 0; border: 1px solid #cbd5e1;
+            background: #fff; border-radius: 6px; cursor: pointer; font-weight: 500; color: #1e293b;
+            display: inline-block; font-size: 0.92em;
+        }
+        .genai-lesson-container button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .genai-lesson-container button.active, .genai-lesson-container .chip.selected {
+            background: #dbeafe; border-color: #93c5fd; color: #1e3a8a;
+        }
+        .genai-lesson-container a { color: #2563eb; }
+        .genai-lesson-container canvas {
+            display: block; width: 100%; max-width: 100%; background: #0f172a;
+            border-radius: 6px; margin-top: 10px;
+        }
+        .genai-lesson-container .viz-label { font-size: 0.85em; font-weight: 600; color: #64748b; margin-top: 12px; }
+        .genai-lesson-container details { margin: 12px 0; }
+        .genai-lesson-container summary { cursor: pointer; color: #2563eb; font-weight: 600; }
+        .genai-lesson-container .panel, .genai-lesson-container .token-stream, .genai-lesson-container .log {
+            background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 12px 14px;
+            font-family: ui-monospace, Menlo, monospace; font-size: 0.82em;
+            white-space: pre-wrap; min-height: 80px; margin-top: 10px;
+        }
+        .genai-lesson-container input[type="range"] { width: min(100%, 360px); vertical-align: middle; }
+        .genai-lesson-container input[type="text"], .genai-lesson-container input[type="number"] {
+            padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95em;
+        }
+        .genai-lesson-container .prob-row { display: flex; align-items: center; margin: 6px 0; font-size: 0.9em; }
+        .genai-lesson-container .prob-label { width: 140px; font-family: ui-monospace, Menlo, monospace; flex-shrink: 0; }
+        .genai-lesson-container .prob-bar-bg { flex: 1; background: #e2e8f0; border-radius: 4px; height: 16px; overflow: hidden; }
+        .genai-lesson-container .prob-bar { height: 100%; background: #2563eb; border-radius: 4px; transition: width 0.35s ease; }
+        .genai-lesson-container .prob-bar.warn { background: #94a3b8; }
+        .genai-lesson-container .prob-pct { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+        .genai-lesson-container .pipe-stage {
+            display: inline-block; padding: 10px 12px; margin: 4px; border-radius: 8px;
+            border: 2px solid #cbd5e1; background: #f8fafc; font-size: 0.85em; font-weight: 600;
+            min-width: 100px; text-align: center; transition: all 0.3s;
+        }
+        .genai-lesson-container .pipe-stage.on { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; }
+        .genai-lesson-container .pipe-stage.done { border-color: #16a34a; background: #dcfce7; }
+        .genai-lesson-container .pipe-arrow { color: #94a3b8; font-weight: 700; }
+        .genai-lesson-container ol.guided li { margin-bottom: 8px; }
+
+</style>
+
+<h1>Turning Sound into Pixels (The Waveform &amp; Spectrogram)</h1>
+
+<div class="roadmap"><strong>Unit roadmap — Intro to Audio Generation</strong>
+<ol>
+<li class="here">1. Sound as waveforms &amp; spectrograms ← <em>you are here</em></li>
+<li>2. Recipes (MIDI) vs records (raw audio)</li>
+<li>3. Audio tokens &amp; neural codecs</li>
+<li>4. Conditioning — steering generation</li>
+<li>5. Real systems (AudioCraft, Suno…) &amp; ethics</li>
+</ol></div>
+
+<p><strong>Goal:</strong> Build hands-on fluency with how sound becomes numbers on a computer — sampling, file size, Nyquist limits, and the STFT pipeline that turns a 1-D wave into a 2-D <strong>spectrogram</strong> image. By the end you can compute sample counts, predict spectrogram tensor shapes, and explain why generative models rarely ingest raw waves directly. No music theory required yet.</p>
+
+<div class="bridge">
+<strong>Where this unit goes:</strong> Lesson 1 = digitize and visualize sound (this page).
+Lesson 2 = symbolic “recipes” (MIDI) vs full recordings.
+Lessons 3–4 = neural codecs and conditioning (how Meta AudioCraft-style systems compress and steer audio).
+Lesson 5 = deployed products and ethics.
+<strong>Carry forward:</strong> every later lesson assumes you can read “44.1 kHz, 16-bit, mono” and “spectrogram shape (frames × freq bins).”
+</div>
+
+<hr>
+
+<h2>0. Primer — three ideas, zero music theory</h2>
+<p>Generative audio pipelines care about physics and data shapes, not whether you can read sheet music. Three everyday ideas map directly to the math below:</p>
+
+<table>
+<tr><th>Everyday idea</th><th>Audio term</th><th>What you measure</th><th>Gen-AI relevance</th></tr>
+<tr><td>How loud</td><td><strong>Amplitude</strong></td><td>Height of the waveform (often −1.0 … +1.0 after normalization)</td><td>Stored in each sample; drives dynamics in diffusion / codec models</td></tr>
+<tr><td>How high or low it sounds</td><td><strong>Pitch / frequency</strong></td><td>Cycles per second in <strong>Hertz (Hz)</strong></td><td>Visible as horizontal bands on a spectrogram</td></tr>
+<tr><td>What makes a piano ≠ a trumpet at the same pitch</td><td><strong>Timbre</strong></td><td>Mix of overtones + attack/decay envelope</td><td>Spread across many frequency bins; hard to see in one sample value</td></tr>
+</table>
+
+<div class="primer-box">
+<h3 style="margin-top:0;">Mini-glossary (Lesson 1 only)</h3>
+<ul>
+<li><strong>Waveform</strong> — amplitude vs time; one wiggly line (or one list of numbers).</li>
+<li><strong>Sample rate f<sub>s</sub></strong> — snapshots per second (CD audio: 44,100 Hz).</li>
+<li><strong>Spectrogram</strong> — heat-map: time →, frequency ↑, brightness = energy at that pitch.</li>
+<li><strong>STFT</strong> — Short-Time Fourier Transform; the standard algorithm that builds spectrograms.</li>
+</ul>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 1 — Primer check</h3>
+<p><strong>Q:</strong> A sound feels “boomier” (lower) than another. Which axis on a spectrogram moves — time, frequency, or brightness?</p>
+<details><summary>Show answer</summary>
+<p><strong>Frequency (vertical).</strong> Lower pitch = lower Hz = energy appears closer to the <em>bottom</em> of the plot (convention varies, but “up = higher pitch” is standard). Brightness is loudness at that (time, freq) cell; time is left-to-right.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>1. The waveform — pressure vs time</h2>
+<p>Sound is a rapid variation in air <strong>pressure</strong> around ambient pressure. A microphone converts that into voltage; we plot <strong>amplitude</strong> (related to pressure deviation) on the y-axis and <strong>time</strong> on the x-axis. That plot is the <strong>waveform</strong>.</p>
+
+<ul>
+<li><strong>Amplitude</strong> — how far the line swings from the center (louder → bigger swing, until clipping).</li>
+<li><strong>Frequency f</strong> — how many complete up-down <em>cycles</em> occur per second. Unit: Hz.</li>
+<li><strong>Period T</strong> — seconds per cycle: T = 1 / f.</li>
+</ul>
+
+<h3>Worked comparison: 2 Hz vs 4 Hz</h3>
+<p>Imagine two pure sine tones recorded for exactly <strong>1.0 second</strong>:</p>
+
+<table>
+<tr><th>Tone</th><th>Frequency</th><th>Period</th><th>What you see in 1 s of waveform</th></tr>
+<tr><td>Low hum</td><td>2 Hz</td><td>T = 1/2 = 0.50 s</td><td><strong>2</strong> full cycles — wide, lazy waves</td></tr>
+<tr><td>Higher hum</td><td>4 Hz</td><td>T = 1/4 = 0.25 s</td><td><strong>4</strong> full cycles — tighter zigzag (2× as many peaks in the same second)</td></tr>
+</table>
+
+<div class="worked">
+<strong>Count the peaks:</strong> In a 0.5 s window, the 2 Hz tone completes exactly 2 × 0.5 = <strong>1</strong> cycle. The 4 Hz tone completes 4 × 0.5 = <strong>2</strong> cycles in that same window. Doubling frequency doubles how “crowded” the waveform looks — that visual density is what the spectrogram later encodes as vertical position.
+</div>
+
+<figure>
+<img src="assets/m1_waveform_pressure.png" alt="Waveform as pressure over time">
+<figcaption>Waveform = pressure (or microphone voltage) vs time. Adapted from <em>Machine Learning for Music</em> Module 1 slides, used with instructor permission.</figcaption>
+</figure>
+
+<figure>
+<img src="assets/m1_waveform_example.png" alt="Example waveform plot">
+<figcaption>Real musical audio zoomed in — still amplitude vs time; timbre makes the shape jagged rather than a clean sine. Adapted from <em>Machine Learning for Music</em> Module 1, used with instructor permission.</figcaption>
+</figure>
+
+<div class="callout">
+<strong>Metaphor:</strong> A waveform is a seismograph trace — one continuous squiggle. A spectrogram (later) is the same event photographed through a prism that separates bass from treble.
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 2 — Frequency ↔ period</h3>
+<p><strong>Q:</strong> A tuning fork vibrates at 440 Hz (concert A). What is its period in milliseconds?</p>
+<details><summary>Show answer</summary>
+<p>T = 1/440 ≈ 0.00227 s ≈ <strong>2.27 ms</strong> per cycle. Higher Hz → shorter period → waveform repeats faster.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>2. Analogue → digital — sampling, bit depth, file size</h2>
+<p>Air pressure is continuous. Computers store <strong>finite lists of numbers</strong>. Two steps:</p>
+<ol>
+<li><strong>Sampling</strong> — measure amplitude every Δt = 1/f<sub>s</sub> seconds.</li>
+<li><strong>Quantization</strong> — round each measurement to the nearest representable integer level (controlled by <strong>bit depth</strong>).</li>
+</ol>
+
+<figure>
+<img src="assets/m1_sampling_grid.png" alt="Sampling an analogue wave">
+<figcaption>Sampling snaps the smooth curve to a grid of points. Adapted from <em>Machine Learning for Music</em> Module 1, used with instructor permission.</figcaption>
+</figure>
+
+<h3>Core formulas</h3>
+<div class="eq-panel">
+samples (mono) = T × f<sub>s</sub><br>
+samples (stereo) = T × f<sub>s</sub> × 2 &nbsp; (one stream per channel)<br>
+bytes (PCM 16-bit) ≈ samples × 2 bytes/sample<br>
+levels (b-bit) = 2<sup>b</sup> &nbsp; (e.g. 16-bit → 65,536 levels)
+</div>
+
+<h3>Worked example — 3 seconds of CD-quality mono</h3>
+<div class="worked">
+<p>Given: T = 3 s, f<sub>s</sub> = 44,100 Hz, 16-bit mono PCM.</p>
+<ol>
+<li>samples = 3 × 44,100 = <strong>132,300</strong> numbers</li>
+<li>bytes = 132,300 × 2 = <strong>264,600 B</strong> ≈ <strong>258.4 KB</strong></li>
+<li>Each sample is one of 2<sup>16</sup> = <strong>65,536</strong> amplitude levels</li>
+</ol>
+<p>Same clip <strong>stereo</strong>: 264,600 samples → 529,200 bytes ≈ <strong>516.8 KB</strong>.</p>
+<p>A <strong>3-minute</strong> song (180 s) stereo: samples = 180 × 44,100 × 2 = 15,876,000; bytes ≈ <strong>30.3 MB</strong> uncompressed.</p>
+</div>
+
+<h3>Nyquist and aliasing</h3>
+<div class="eq-panel">
+Nyquist: f<sub>s</sub> ≥ 2 × f<sub>max</sub> &nbsp; (must sample at least twice the highest frequency you want to keep)
+</div>
+<p>CD audio at 44,100 Hz can represent content up to ~22,050 Hz — above typical adult hearing (~20 kHz). If you sample too slowly, high tones <strong>alias</strong>: they masquerade as false low tones (like wagon wheels appearing to spin backward in film). Anti-aliasing filters remove energy above f<sub>s</sub>/2 <em>before</em> sampling.</p>
+
+<div class="warn-box">
+<strong>Aliasing in plain language:</strong> Imagine taking a photo of a spinning fan once every second. Sometimes the blades look frozen or spin the wrong way — you didn’t capture enough snapshots to reconstruct the true motion. Undersampling audio does the same to high frequencies.
+</div>
+
+<div class="calc-box">
+<h3 style="margin-top:0;">Interactive — PCM size calculator</h3>
+<p>Duration T (seconds): <input type="number" id="calc-duration" value="3" min="0" step="0.1" style="width:80px;">
+&nbsp; Sample rate f<sub>s</sub> (Hz): <input type="number" id="calc-rate" value="44100" min="1000" step="100" style="width:100px;">
+&nbsp; Channels: <select id="calc-channels"><option value="1">Mono</option><option value="2" selected>Stereo</option></select></p>
+<pre class="shape-trail" id="calc-out" style="margin-bottom:0;">…</pre>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 3 — Sample arithmetic</h3>
+<p><strong>Q:</strong> How many <em>mono</em> samples in 0.25 s at f<sub>s</sub> = 48,000 Hz? Roughly how many MB is that at 16-bit?</p>
+<details><summary>Show answer</summary>
+<p>samples = 0.25 × 48,000 = <strong>12,000</strong>. bytes = 12,000 × 2 = 24,000 B ≈ <strong>0.023 MB</strong> (23.4 KB).</p>
+</details>
+</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 4 — Nyquist</h3>
+<p><strong>Q:</strong> You record speech with f<sub>s</sub> = 16,000 Hz. What is the highest frequency you can faithfully represent? What happens to energy at 12 kHz if no low-pass filter is applied?</p>
+<details><summary>Show answer</summary>
+<p>Max faithful frequency ≈ f<sub>s</sub>/2 = <strong>8 kHz</strong>. Energy at 12 kHz will <strong>alias</strong> — fold into lower bins (e.g. appear near 4 kHz) and corrupt the recording.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>3. Why raw waveforms choke generative models</h2>
+<p>Text LLMs consume discrete <strong>tokens</strong> — often tens of thousands of context slots. Raw audio is a different beast:</p>
+
+<table>
+<tr><th>Representation</th><th>3 s clip @ 44.1 kHz mono</th><th>~3 min song mono</th></tr>
+<tr><td>Raw PCM samples</td><td>132,300 numbers</td><td>~7.9 million numbers</td></tr>
+<tr><td>GPT-scale context (~128k tokens)</td><td colspan="2">A 3 s mono wave <em>alone</em> already rivals a full text context window — with no semantic compression</td></tr>
+</table>
+
+<p>Problems for autoregressive / transformer models on raw waves:</p>
+<ul>
+<li><strong>Length</strong> — one step per sample (or per tiny group) explodes sequence length.</li>
+<li><strong>Opacity</strong> — sample #50,000 does not spell “middle C”; pitch is distributed across thousands of samples.</li>
+<li><strong>Perceptual mismatch</strong> — ears integrate frequency content over ~10–30 ms windows; sample-by-sample modeling fights human hearing.</li>
+</ul>
+
+<p>Industry pipelines therefore <strong>re-encode</strong> audio before the LM/diffusion core:</p>
+<div class="shape-trail">microphone → PCM wave (1-D, huge)
+    → STFT / mel spectrogram (2-D, smaller)
+    → OR neural codec tokens (Lesson 3, EnCodec-style in AudioCraft)
+    → OR symbolic MIDI events (Lesson 2)</div>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 5 — Scale intuition</h3>
+<p><strong>Q:</strong> 10 s mono @ 44.1 kHz — order-of-magnitude sample count? Could a 128k-token LM treat each sample as one token and fit the whole clip in context?</p>
+<details><summary>Show answer</summary>
+<p>samples ≈ 10 × 44,100 = <strong>441,000</strong> — roughly <strong>3.4×</strong> a 128k context. No, not without compression or patch grouping.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>4. Fourier intuition → STFT step-by-step</h2>
+<p>A <strong>Fourier transform</strong> asks: “In this slice of signal, which pure frequencies are present, and how loud?” Plot magnitudes once → <strong>spectrum</strong>. Repeat on sliding windows → stack spectra side-by-side → <strong>spectrogram</strong>.</p>
+
+<figure>
+<img src="assets/m1_spectrogram_triad.png" alt="Waveform, spectrum, spectrogram">
+<figcaption>Waveform → single-frame spectrum → spectrogram over time. Adapted from <em>Machine Learning for Music</em> Module 1, used with instructor permission.</figcaption>
+</figure>
+
+<figure>
+<img src="assets/m2_fourier_decomp.png" alt="Fourier decomposition intuition">
+<figcaption>Any short slice ≈ sum of sine waves at different frequencies — the FFT computes those weights. Adapted from <em>Machine Learning for Music</em> Module 2, used with instructor permission.</figcaption>
+</figure>
+
+<h3>STFT mechanics (what librosa / torchaudio actually do)</h3>
+<ol>
+<li><strong>Choose window length N</strong> (e.g. 2048 samples) and <strong>hop H</strong> (e.g. 512).</li>
+<li><strong>Frame k</strong> takes samples [k·H : k·H + N] multiplied by a window (Hann, etc.).</li>
+<li><strong>FFT</strong> each frame → N/2 + 1 complex bins (positive frequencies for real signals).</li>
+<li>Store magnitude (often log-scaled) → one column of the spectrogram.</li>
+<li>Advance k by 1; repeat until the window passes the end of the clip.</li>
+</ol>
+
+<figure>
+<img src="assets/m2_stft_concept.png" alt="STFT concept diagram">
+<figcaption>Overlapping windows localize frequency content in time. Adapted from Module 2, used with instructor permission.</figcaption>
+</figure>
+
+<div class="eq-panel">
+frame duration = N / f<sub>s</sub> &nbsp;&nbsp;|&nbsp;&nbsp; hop time = H / f<sub>s</sub><br>
+n<sub>frames</sub> ≈ 1 + floor( (T·f<sub>s</sub> − N) / H )<br>
+n<sub>freqs</sub> = N/2 + 1 &nbsp;&nbsp;|&nbsp;&nbsp; Δf = f<sub>s</sub> / N
+</div>
+
+<h3>Worked STFT example — numbers filled in</h3>
+<div class="worked">
+<p>Clip: T = 3.0 s, f<sub>s</sub> = 44,100 Hz, N = 2048, H = 512.</p>
+<ol>
+<li>Total samples: 3 × 44,100 = <strong>132,300</strong></li>
+<li>Frame duration: 2048 / 44100 ≈ <strong>46.4 ms</strong> (human hearing integrates ~20–40 ms — similar scale)</li>
+<li>Hop time: 512 / 44100 ≈ <strong>11.6 ms</strong> between column starts</li>
+<li>Frequency bins: 2048/2 + 1 = <strong>1025</strong></li>
+<li>Bin spacing: Δf = 44100/2048 ≈ <strong>21.53 Hz</strong> per row</li>
+<li>Frame count: 1 + floor((132300 − 2048) / 512) = 1 + floor(254.4) = <strong>255 frames</strong></li>
+</ol>
+</div>
+
+<div class="shape-trail">waveform x: shape (132300,)  — 1-D float32
+STFT magnitude S: shape (1025, 255)  — freq × time  [librosa default]
+    OR (255, 1025)  — time × freq   [some DL papers]
+log-mel (after mel bank): shape (128, 255)  — 128 mel bins × 255 frames</div>
+
+<p>Compare compression: 132,300 wave samples → 255 × 1025 ≈ <strong>261k</strong> spectrogram cells (not automatically smaller — but each cell summarizes ~46 ms of <em>all</em> frequencies, and mel filtering often shrinks rows to 80–128).</p>
+
+<figure>
+<img src="assets/m2_log_spectrogram.png" alt="Log spectrogram of real audio">
+<figcaption>Log-magnitude spectrogram of real audio — horizontal ridges = sustained pitches; vertical smear = transients. Adapted from Module 2, used with instructor permission.</figcaption>
+</figure>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 6 — STFT shape drill</h3>
+<p><strong>Q:</strong> Same f<sub>s</sub> = 44,100, N = 1024, H = 256, T = 1.0 s. Compute n<sub>freqs</sub>, Δf, and n<sub>frames</sub>.</p>
+<details><summary>Show answer</summary>
+<p>n<sub>freqs</sub> = 1024/2 + 1 = <strong>513</strong>. Δf = 44100/1024 ≈ <strong>43.07 Hz</strong>. Samples = 44,100. n<sub>frames</sub> = 1 + floor((44100 − 1024)/256) = 1 + 168 = <strong>169</strong>.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>5. Mel scale — why models warp frequency</h2>
+<p>Human pitch perception is <strong>approximately logarithmic</strong> in Hz: the jump 100→200 Hz sounds as “big” as 1000→2000 Hz, even though the second is 800 Hz wide. The <strong>mel scale</strong> compresses high Hz and expands low Hz so bin spacing matches ears.</p>
+
+<ul>
+<li>STFT with 1025 linear bins wastes resolution above ~4 kHz for speech/music perception.</li>
+<li><strong>Mel-spectrograms</strong> (80–128 bins) are the default input to speech synthesizers and many music models.</li>
+<li>Meta’s AudioCraft family (MusicGen, AudioGen) operates on learned representations derived from mel / codec latents — not raw samples.</li>
+</ul>
+
+<figure>
+<img src="assets/m2_stft_vs_mel.png" alt="STFT vs mel-spectrogram">
+<figcaption>Linear STFT vs mel-warped spectrogram — same audio, fewer perceptually meaningful rows. Adapted from Module 2, used with instructor permission.</figcaption>
+</figure>
+
+<div class="quiz">
+<h3 style="margin-top:0;">Quiz 7 — Mel motivation</h3>
+<p><strong>Q:</strong> A model has fixed compute budget for 256 frequency rows. Why might 256 <em>mel</em> bins beat 256 <em>linear</em> Hz bins for music generation?</p>
+<details><summary>Show answer</summary>
+<p>Mel allocates more bins to low/mid frequencies where pitch and harmony matter; linear bins pack hundreds of rows above 5 kHz where perception is coarse. Same row count → better perceptual coverage.</p>
+</details>
+</div>
+
+<hr>
+
+<h2>6. Guided lab (in-page): hear it → see it</h2>
+<p>Use the sandbox below <em>after</em> reading Sections 1–5. Predict before clicking:</p>
+<ol class="guided">
+<li><strong>Bass (110 Hz)</strong> — energy low on spectrogram; waveform cycles slowly.</li>
+<li><strong>Whistle (1760 Hz)</strong> — energy high; waveform zigzags faster (16× the frequency of bass).</li>
+<li><strong>Noise</strong> — broadband vertical smear (many frequencies at once).</li>
+<li><strong>Mic</strong> — hum low, whistle high; vowels show formant bands.</li>
+</ol>
+
+<div class="interactive-box" id="audio-viz">
+        <div>
+            <button type="button" class="primary" id="btn-bass">Play bass (110 Hz)</button>
+            <button type="button" class="primary" id="btn-whistle">Play whistle (1760 Hz)</button>
+            <button type="button" id="btn-noise">Play noise</button>
+            <button type="button" id="btn-mic">Use microphone</button>
+            <button type="button" id="btn-stop">Stop</button>
+        </div>
+        <p id="viz-status" style="font-size:0.9em;color:#64748b;margin:10px 0 0;">Stopped. Click a preset to start.</p>
+        <div class="viz-label">Waveform (amplitude vs time)</div>
+        <canvas id="wave-canvas" width="760" height="140"></canvas>
+        <div class="viz-label">Spectrogram (frequency ↑, time →, brightness = energy)</div>
+        <canvas id="spec-canvas" width="760" height="220"></canvas>
+        <p style="font-size:0.85em;color:#64748b;margin-top:10px;margin-bottom:0;">
+            Tip: if the mic button fails, your browser blocked permission — presets still work offline.
+        </p>
+    </div>
+
+<hr>
+
+<h2>7. Guided lab (online): Chrome Music Lab Spectrogram</h2>
+<div class="tool-box">
+<p style="margin-top:0;"><strong>Tool:</strong> <a href="https://musiclab.chromeexperiments.com/Spectrogram/" target="_blank" rel="noopener">Chrome Music Lab — Spectrogram</a> (browser mic).</p>
+<ol class="guided">
+<li>Allow microphone access. Hum a low note 2 s, then whistle high — sketch which region of the Y axis lit up.</li>
+<li>Clap once. Describe the <strong>vertical flash</strong> (broadband transient vs narrow horizontal tone).</li>
+<li>Sustain “ooo” vs “eee.” Note different <strong>formant</strong> bands — timbre without changing fundamental pitch much.</li>
+<li>Estimate fundamental frequency of your hum using the axis labels (or count cycles in the companion waveform view here).</li>
+<li>Write one sentence: “If this were STFT data, each vertical pixel column ≈ one frame of length N/f<sub>s</sub>.”</li>
+</ol>
+</div>
+
+<div class="bridge">
+<strong>Next — Lesson 2:</strong> Spectrograms compress <em>acoustic</em> structure into images, but musicians also store music as sparse <strong>event lists</strong> (MIDI) — editable “recipes” vs bulky WAV “records.” You will compute MIDI frequencies, tokenize a melody REMI-style, and compare file sizes with real numbers.
+<br>→ <a href="lesson2.html">Lesson 2: Recipes vs. Records</a>
+</div>
+
+<hr>
+<h2>Further reading</h2>
+<ul>
+<li><em>Machine Learning for Music</em> Modules 1–2 (figures on this page) — instructor permission.</li>
+<li>Meinard Müller, <a href="https://www.audiolabs-erlangen.de/resources/MIR/FMP/C1/C1.html" target="_blank" rel="noopener">Fundamentals of Music Processing (FMP)</a>.</li>
+<li>Meta AudioCraft docs — mel + EnCodec front-ends for MusicGen (Lesson 3 connection).</li>
+</ul>
+
+</div>
+
+<script>
+(function () {
+    var audioCtx = null;
+    var analyser = null;
+    var sourceNode = null;
+    var osc = null;
+    var noiseNode = null;
+    var micStream = null;
+    var animId = null;
+    var statusEl = document.getElementById('viz-status');
+    var waveCanvas = document.getElementById('wave-canvas');
+    var specCanvas = document.getElementById('spec-canvas');
+    var waveCtx = waveCanvas.getContext('2d');
+    var specCtx = specCanvas.getContext('2d');
+    var specCol = 0;
+
+    function ensureCtx() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 2048;
+            analyser.smoothingTimeConstant = 0.7;
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function stopAll() {
+        if (animId) { cancelAnimationFrame(animId); animId = null; }
+        if (osc) { try { osc.stop(); } catch (e) {} osc.disconnect(); osc = null; }
+        if (noiseNode) { try { noiseNode.stop(); } catch (e) {} noiseNode.disconnect(); noiseNode = null; }
+        if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+        if (micStream) {
+            micStream.getTracks().forEach(function (t) { t.stop(); });
+            micStream = null;
+        }
+        statusEl.textContent = 'Stopped.';
+    }
+
+    function clearSpec() {
+        specCtx.fillStyle = '#0f172a';
+        specCtx.fillRect(0, 0, specCanvas.width, specCanvas.height);
+        specCol = 0;
+    }
+
+    function draw() {
+        var timeData = new Uint8Array(analyser.fftSize);
+        var freqData = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteTimeDomainData(timeData);
+        analyser.getByteFrequencyData(freqData);
+
+        waveCtx.fillStyle = '#0f172a';
+        waveCtx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
+        waveCtx.strokeStyle = '#38bdf8';
+        waveCtx.lineWidth = 2;
+        waveCtx.beginPath();
+        var slice = waveCanvas.width / timeData.length;
+        for (var i = 0; i < timeData.length; i++) {
+            var v = timeData[i] / 128.0;
+            var y = (v * waveCanvas.height) / 2;
+            if (i === 0) waveCtx.moveTo(i * slice, y);
+            else waveCtx.lineTo(i * slice, y);
+        }
+        waveCtx.stroke();
+
+        var h = specCanvas.height;
+        for (var y = 0; y < h; y++) {
+            var idx = Math.floor((1 - y / h) * (freqData.length * 0.35));
+            var val = freqData[idx] || 0;
+            var r = Math.min(255, val * 1.2);
+            var g = Math.min(255, val * 0.6);
+            var b = 40 + val * 0.4;
+            specCtx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+            specCtx.fillRect(specCol, y, 2, 1);
+        }
+        specCol = (specCol + 2) % specCanvas.width;
+        if (specCol < 2) {
+            specCtx.fillStyle = '#0f172a';
+            specCtx.fillRect(0, 0, 4, h);
+        }
+
+        animId = requestAnimationFrame(draw);
+    }
+
+    function startTone(freq, label) {
+        stopAll();
+        ensureCtx();
+        clearSpec();
+        osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0.12;
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        osc.start();
+        statusEl.textContent = 'Playing: ' + label;
+        draw();
+    }
+
+    function startNoise() {
+        stopAll();
+        ensureCtx();
+        clearSpec();
+        var bufferSize = audioCtx.sampleRate * 2;
+        var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        var data = buffer.getChannelData(0);
+        for (var i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        noiseNode = audioCtx.createBufferSource();
+        noiseNode.buffer = buffer;
+        noiseNode.loop = true;
+        var gain = audioCtx.createGain();
+        gain.gain.value = 0.05;
+        noiseNode.connect(gain);
+        gain.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        noiseNode.start();
+        statusEl.textContent = 'Playing: noise (energy across many frequencies).';
+        draw();
+    }
+
+    async function startMic() {
+        stopAll();
+        ensureCtx();
+        clearSpec();
+        try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            sourceNode = audioCtx.createMediaStreamSource(micStream);
+            sourceNode.connect(analyser);
+            statusEl.textContent = 'Microphone live — try a low hum then a high whistle.';
+            draw();
+        } catch (err) {
+            statusEl.textContent = 'Mic blocked (' + err.message + '). Use the preset buttons instead.';
+        }
+    }
+
+    document.getElementById('btn-bass').addEventListener('click', function () {
+        startTone(110, 'bass (110 Hz) — expect energy low on the spectrogram');
+    });
+    document.getElementById('btn-whistle').addEventListener('click', function () {
+        startTone(1760, 'whistle (1760 Hz) — expect energy high on the spectrogram');
+    });
+    document.getElementById('btn-noise').addEventListener('click', startNoise);
+    document.getElementById('btn-mic').addEventListener('click', startMic);
+    document.getElementById('btn-stop').addEventListener('click', stopAll);
+    clearSpec();
+})();
+</script>
+
+<script>
+(function () {
+    var durEl = document.getElementById('calc-duration');
+    var rateEl = document.getElementById('calc-rate');
+    var chEl = document.getElementById('calc-channels');
+    var outEl = document.getElementById('calc-out');
+    function update() {
+        var T = parseFloat(durEl.value) || 0;
+        var fs = parseFloat(rateEl.value) || 44100;
+        var ch = parseInt(chEl.value, 10) || 1;
+        var monoSamples = Math.round(T * fs);
+        var totalSamples = monoSamples * ch;
+        var bytes = totalSamples * 2;
+        var mb = bytes / (1024 * 1024);
+        var nyq = fs / 2;
+        outEl.textContent =
+            'T = ' + T + ' s,  fs = ' + fs + ' Hz,  channels = ' + ch + '\n' +
+            'mono samples = T × fs = ' + monoSamples.toLocaleString() + '\n' +
+            'total samples  = ' + totalSamples.toLocaleString() + '\n' +
+            'PCM 16-bit size = ' + bytes.toLocaleString() + ' B ≈ ' + mb.toFixed(3) + ' MB\n' +
+            'Nyquist f_max ≈ ' + nyq.toLocaleString() + ' Hz';
+    }
+    durEl.addEventListener('input', update);
+    rateEl.addEventListener('input', update);
+    chEl.addEventListener('change', update);
+    update();
+})();
+</script>
+
+</body></html>
