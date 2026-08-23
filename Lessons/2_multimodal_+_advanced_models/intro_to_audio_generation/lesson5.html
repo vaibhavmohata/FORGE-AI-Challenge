@@ -6,6 +6,17 @@
 <body>
 
 <div class="genai-lesson-container">
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true
+    }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <style>
 
         .genai-lesson-container {
@@ -127,374 +138,297 @@
         .genai-lesson-container ol.guided li { margin-bottom: 8px; }
 
     </style>
+<h1>Lesson 5: Under the Hood of Real Audio AI (Architectures, Systems, and Ethics)</h1>
 
+<p>Over the previous four lessons, we developed each core component of the modern audio generation stack:</p>
+<ul>
+<li><strong>Lesson 1:</strong> Converting physical air pressure into digital tensors via sampling, quantization, and the Short-Time Fourier Transform (STFT).</li>
+<li><strong>Lesson 2:</strong> The divide between symbolic music recipes (MIDI/REMI event lists) and continuous acoustic records (PCM/Spectrograms).</li>
+<li><strong>Lesson 3:</strong> Compressing high-rate waveforms into compact discrete token dictionaries using Neural Audio Codecs (EnCodec, DAC, SoundStream) and Residual Vector Quantization (RVQ).</li>
+<li><strong>Lesson 4:</strong> Steering generative models using cross-attention conditioning (\(c\)) and Classifier-Free Guidance (CFG).</li>
+</ul>
+<p>In this capstone lesson, we wire these components into complete production pipelines. We examine how state-of-the-art systems (like Meta's AudioCraft, Suno, Udio, and Stable Audio) generate full-length audio, compare autoregressive sequence modeling against continuous latent diffusion, analyze real-world serving constraints, and address the ethical and legal challenges of generative audio.</p>
 
-    <h1>Under the Hood of Real Audio AI</h1>
-    <div class="roadmap"><strong>Unit roadmap — Intro to Audio Generation</strong>
-        <ol>
-            <li>1. Waveforms &amp; spectrograms</li>
-            <li>2. MIDI vs recordings</li>
-            <li>3. Codec tokens</li>
-            <li>4. Conditioning</li>
-            <li class="here">5. Products &amp; ethics ← <em>you are here</em></li>
-        </ol>
-    </div>
+<hr>
 
-    <p><strong>Goal:</strong> End-to-end shape trail, inference pseudocode, diffusion path usable at high level, commercial feature mapping, ethics scenarios, capstone rubric.</p>
+<div class="roadmap"><strong>Course Roadmap — Intro to Audio Generation</strong>
+<ol>
+<li>1. <strong>Sound as Waveforms &amp; Spectrograms</strong></li>
+<li>2. <strong>Recipes (MIDI) vs. Records (Raw Audio)</strong></li>
+<li>3. <strong>Audio Tokens &amp; Neural Codecs (EnCodec, SoundStream, DAC)</strong></li>
+<li>4. <strong>Conditioning Mechanisms: Steering Audio Models</strong></li>
+<li class="here">5. <strong>Modern Architectures, Production Systems &amp; Ethics</strong> <em>(You are here)</em></li>
+</ol>
+</div>
 
-    <div class="bridge">
-        <strong>Recap arc:</strong> L1 numbers for sound → L2 symbolic recipes → L3 discrete acoustic tokens → L4 control signal c → L5 shipping &amp; responsibility.
-    </div>
+<hr>
 
-    <hr>
+<h2>1. End-to-End Tensor Shape Trace: Generating 10 Seconds of Audio</h2>
+<p>To understand how an autoregressive codec system (such as Meta's <strong>MusicGen</strong>) runs inference, track the exact tensor transformations across each stage:</p>
+<pre class="shape-trail">1. User Text Prompt:
+   "lo-fi guitar, chill rain"
+   │
+   ▼
+2. Text Tokenizer:
+   Tensor Shape: (L,) = (12,)  [12 discrete subword token IDs]
+   │
+   ▼
+3. Frozen Text Encoder (T5-Large):
+   Tensor Shape: (L, d_text) = (12, 1024)  [Continuous contextual embeddings]
+   │
+   ▼
+4. Autoregressive Transformer Decoder:
+   Processes F = 10s × 50 Hz = 500 frames across K = 4 residual codebooks.
+   Total Autoregressive Decisions: 500 × 4 = 2,000 steps.
+   At each step: Model outputs logits (V,) where V = 2048, sampled via Softmax + CFG.
+   Output Discrete Tensor Shape: (F, K) = (500, 4)
+   │
+   ▼
+5. Codebook Embedding Lookup &amp; Hierarchical Sum:
+   Each ID is mapped to its D = 128 continuous prototype vector and summed across K = 4 stages.
+   Latent Grid Tensor Shape: (F, D) = (500, 128)
+   │
+   ▼
+6. Neural Codec Decoder (Transposed Convolutions):
+   Upsamples the (500, 128) latent grid by a total stride factor of 640.
+   Output PCM Audio Waveform Shape: (T,) = (320,000,) float32 samples at 32 kHz.</pre>
 
-    <h2>1. Full unit shape trail (MusicGen-like, 10 s @ 32 kHz)</h2>
-    <div class="shape-trail">Text string                    →  "lo-fi guitar, chill rain"
-Text token IDs (L,)            →  L ≈ 12 subwords
-Text embeddings (L, 1024)      →  T5 encoder
-Interleaved codec IDs (T_tok,) →  T_tok ≈ 10×50×4 = 2000
-Per-step logits (2048,)        →  softmax sample
-Latent grid (500, 128)         →  codebook lookup + sum over K=4
-Waveform (320000,)             →  codec decoder @ 32kHz</div>
+<figure>
+<img src="assets/m4_latent_spectrogram.png" alt="Latent diffusion pipeline from audio or text to waveform">
+<figcaption><strong>Figure.</strong> Latent-audio generation path: encode audio/text into a compact latent, generate or denoise there, then decode back to a waveform. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
 
-    <figure>
-        <img src="assets/m4_musicgen.png" alt="MusicGen">
-        <figcaption>MusicGen overview. Adapted from <em>Machine Learning for Music</em> Module 4, used with instructor permission.</figcaption>
-    </figure>
+<h3>Complete Pipeline Summary Table</h3>
+<table>
+<tr><th>Stage</th><th>Mechanism</th><th>Input Representation &amp; Shape</th><th>Output Representation &amp; Shape</th></tr>
+<tr><td><strong>Prompt Processing</strong></td><td>T5 Text Encoder</td><td>String: <code>"lo-fi guitar..."</code></td><td>Continuous matrix: <code>(12, 1024)</code></td></tr>
+<tr><td><strong>Sequence Generation</strong></td><td>Transformer LM + Cross-Attn</td><td>Text Embeddings + Past Audio IDs</td><td>Discrete Token Matrix: <code>(500, 4)</code></td></tr>
+<tr><td><strong>Acoustic Decoding</strong></td><td>RVQ Codebook Lookup</td><td>Discrete Token Matrix: <code>(500, 4)</code></td><td>Continuous Latent Grid: <code>(500, 128)</code></td></tr>
+<tr><td><strong>Waveform Synthesis</strong></td><td>Transposed Convolutions</td><td>Continuous Latent Grid: <code>(500, 128)</code></td><td>1D Floating-Point PCM: <code>(320,000,)</code></td></tr>
+</table>
 
-    <table>
-        <thead><tr><th>Stage</th><th>Lesson</th><th>Shape</th></tr></thead>
-        <tbody>
-            <tr><td>PCM I/O</td><td>L1</td><td>(T,)</td></tr>
-            <tr><td>MIDI control</td><td>L2</td><td>event lists</td></tr>
-            <tr><td>Quantize</td><td>L3</td><td>(F, K)</td></tr>
-            <tr><td>Steer</td><td>L4</td><td>cross-attn(text)</td></tr>
-            <tr><td>Product</td><td>L5</td><td>lyrics, mix, UI</td></tr>
-        </tbody>
-    </table>
+<hr>
 
-    <div class="quiz">
-        <strong>Quiz 1 (shape):</strong> 5 s @ 32 kHz mono — sample count?
-        <details><summary>Show answer</summary><p><code>160,000</code>.</p></details>
-    </div>
+<h2>2. Autoregressive Codec LMs vs. Continuous Latent Diffusion</h2>
+<p>Modern commercial systems divide primarily into two architectural paradigms: <strong>Autoregressive Codec Models</strong> and <strong>Latent Diffusion Models</strong>.</p>
+<pre class="shape-trail">Autoregressive Codec Path (MusicGen):
+Text Prompt ──► [ T5 Encoder ] ──► [ AR Transformer ] ──► Discrete Tokens (F, K) ──► [ Codec Decoder ] ──► Waveform
 
-    <hr>
+Latent Diffusion Path (AudioLDM, Stable Audio):
+Text Prompt ──► [ CLAP / T5 ]  ──┐
+                                  ▼
+Gaussian Noise z_T ───────────► [ Diffusion Transformer / U-Net ] ──► Denoised Latent z_0 ──► [ Audio VAE / Vocoder ] ──► Waveform
+                                  (Iterative Denoising Loop: t = T...1)</pre>
 
-    <h2>2. Inference pseudocode (codec + transformer)</h2>
-    <div class="panel"># MusicGen-style (high level)
-text_ids = tokenize(user_prompt)                 # (L,)
-c = text_encoder(text_ids)                       # (L, d)
-audio_tokens = encode_prefix(user_wav) if given else []
+<figure>
+<img src="assets/m4_diffusion_rep.png" alt="Spectrogram of a rhythmic pitched clip">
+<figcaption><strong>Figure.</strong> A time–frequency view of pitched rhythmic material — the kind of 2D structure latent diffusion models often operate on (or decode toward) before a vocoder restores a waveform. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
 
-while len(audio_tokens) < target_len:
-    h = transformer(audio_tokens, condition=c)   # causal
-    logits = lm_head(h[-1])                      # (V,)
-    if guidance_scale > 1:
-        logits_u = transformer(audio_tokens, condition=null)
-        logits = logits_u + w * (logits - logits_u)
-    audio_tokens.append(sample(logits, temp, top_p))
+<h3>1. Autoregressive Codec LMs (e.g., MusicGen)</h3>
+<ul>
+<li><strong>Core Concept:</strong> Flattens discrete RVQ codebook indices into an interleaved 1D sequence and samples tokens sequentially from left to right:
+<div class="eq-panel">\[ P(a_1, a_2, \dots, a_N \mid \mathbf{c}) = \prod_{t=1}^{N} P(a_t \mid a_{&lt;t}, \mathbf{c}) \]</div>
+</li>
+<li><strong>Advantages:</strong> Strong structural and melodic coherence over long horizons; natural handling of variable-length audio prompts and continuations.</li>
+<li><strong>Bottlenecks:</strong> Inference is strictly serial. Generating 2,000 tokens requires 2,000 sequential forward passes through the network.</li>
+</ul>
 
-latents = codec_lookup(audio_tokens)             # (F, D)
-wav = codec_decoder(latents)                     # (T,)
-export(wav, sr=32000)</div>
+<h3>2. Latent Diffusion Models (e.g., AudioLDM 2, Stable Audio)</h3>
+<ul>
+<li><strong>Core Concept:</strong> Operates over a continuous 2D time-frequency latent space (e.g., continuous VAE latents derived from Mel-spectrograms). Generation starts with pure Gaussian noise \(z_T \sim \mathcal{N}(0, I)\) and iteratively removes noise over \(N_{\text{steps}}\) (typically 25–100 steps) conditioned on text embeddings \(c\):
+<div class="eq-panel">\[ z_{t-1} = \text{DenoiseStep}(z_t, \mathbf{c}, t) \]</div>
+</li>
+<li><strong>Advantages:</strong> Non-autoregressive; updates the entire temporal grid simultaneously, allowing high parallelization on modern GPU hardware. Excels at complex, layered acoustic textures and high-fidelity stereo audio.</li>
+<li><strong>Bottlenecks:</strong> Requires a dedicated vocoder or diffusion decoder to reconstruct phase and time-domain samples from spectrogram latents. Can struggle with rigid long-range musical structure (e.g., strict 32-bar verse-chorus transitions) without explicit structural conditioning.</li>
+</ul>
 
-    <ol class="guided">
-        <li>Text never becomes audio without passing through token prediction.</li>
-        <li>Prefix tokens are copied verbatim (continuation).</li>
-        <li>Decoder runs after ID sequence complete (streaming variants overlap).</li>
-    </ol>
+<h3>Architectural Tradeoff Matrix</h3>
+<table>
+<tr><th>Metric</th><th>Autoregressive Codec LM</th><th>Latent Diffusion Model</th></tr>
+<tr><td><strong>Primitive Unit</strong></td><td>Discrete Codebook Tokens (\(V \approx 2048\))</td><td>Continuous Latent Space (\(z \in \mathbb{R}^{T \times D}\))</td></tr>
+<tr><td><strong>Inference Loop</strong></td><td>Thousands of sequential steps (\(N \approx 2,000\))</td><td>Dozens of full-tensor updates (\(N_{\text{steps}} \approx 25\text{–}100\))</td></tr>
+<tr><td><strong>Computational Profile</strong></td><td>Memory-bandwidth bound (KV-cache lookups)</td><td>Compute bound (massive matrix multiplications per step)</td></tr>
+<tr><td><strong>Musical Structure</strong></td><td>Strong melodic progression and transition timing</td><td>Rich acoustic textures, complex ambient layering</td></tr>
+<tr><td><strong>Production Examples</strong></td><td>Meta AudioCraft (MusicGen), Suno (assumed hybrid)</td><td>Stability AI (Stable Audio), AudioLDM 2</td></tr>
+</table>
 
-    <hr>
-
-    <h2>3. Diffusion alternate path</h2>
-    <ol>
-        <li>Encode text → c.</li>
-        <li>Sample noise z<sub>T</sub> matching latent shape (time × freq bins).</li>
-        <li>For t = T down to 1: z<sub>t−1</sub> = denoise_step(z<sub>t</sub>, c, t).</li>
-        <li>Vocoder / decoder → waveform.</li>
-    </ol>
-
-    <figure>
-        <img src="assets/m4_diffusion_rep.png" alt="Diffusion representations">
-        <figcaption>Latent diffusion for text-to-music. Adapted from <em>Machine Learning for Music</em> Module 4 (ISMIR 2024), used with instructor permission.</figcaption>
-    </figure>
-
-    <div class="worked">
-        <strong>10 s audio — step count contrast</strong>
-        <table>
-            <tr><th>Path</th><th>Sequential steps</th><th>Per-step work</th></tr>
-            <tr><td>AR codec LM</td><td>~2000 token steps</td><td>softmax over V≈2048</td></tr>
-            <tr><td>Diffusion</td><td>~20–100 denoise steps</td><td>update full latent tensor</td></tr>
-        </table>
-    </div>
-
-    <table>
-        <thead><tr><th>Latency tradeoff (qualitative)</th><th>AR token LM</th><th>Diffusion</th></tr></thead>
-        <tbody>
-            <tr><td>Sequential depth</td><td>High (thousands)</td><td>Lower (dozens)</td></tr>
-            <tr><td>Parallelism per step</td><td>One categorical choice</td><td>Whole grid update</td></tr>
-            <tr><td>Best when</td><td>Codec highly compressed</td><td>Rich continuous latents</td></tr>
-        </tbody>
-    </table>
-
-    <div class="info-box">
-        <strong>Deferred:</strong> Score matching, noise schedules, SDE derivations → <strong>image generation unit</strong>. Here: condition every denoise step, decode once clean.
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 2:</strong> Why diffusion can feel slow despite fewer steps?
-        <details><summary>Show answer</summary><p>Each step touches a large latent grid, not one scalar token.</p></details>
-    </div>
-
-    <hr>
-
-    <h2>4. Pipeline interactive lab</h2>
 <div class="interactive-box">
-        <p style="margin-top:0;">
-            <label>Text prompt:
-                <input type="text" id="pipe-prompt" value="lo-fi guitar, chill night rain" style="width:min(100%,420px);padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
-            </label>
-        </p>
-        <div>
-            <button type="button" class="active" id="path-token">Path: Codec + Transformer</button>
-            <button type="button" id="path-diff">Path: Diffusion</button>
-        </div>
-        <div id="pipe-token" style="margin:16px 0;line-height:2.4;">
-            <span class="pipe-stage" data-s="0">Text</span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="1">Text encoder</span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="2">Transformer<br><small>next audio tokens</small></span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="3">Codec decoder</span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="4">Waveform</span>
-        </div>
-        <div id="pipe-diff" style="margin:16px 0;line-height:2.4;display:none;">
-            <span class="pipe-stage" data-s="0">Text</span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="1">Text encoder</span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="2">Noise latents</span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="3">Denoise steps<br><small>conditioned</small></span><span class="pipe-arrow">→</span>
-            <span class="pipe-stage" data-s="4">Waveform</span>
-        </div>
-        <button type="button" class="primary" id="pipe-run">Run System</button>
-        <button type="button" id="pipe-reset">Reset</button>
-        <div class="log" id="pipe-log">Ready.</div>
-    </div>
+<strong>Lab: Pipeline walkthrough</strong>
+<p style="margin:8px 0 12px;font-size:0.95em;color:#475569;">Toggle Codec+Transformer vs Diffusion, enter a prompt, and step through a cartoon of each production path (stand-in audio only — not a real model decode).</p>
+<p style="margin-top:0;">
+<label>Text prompt:
+<input type="text" id="pipe-prompt" value="lo-fi guitar, chill night rain" style="width:min(100%,420px);padding:8px;border:1px solid #cbd5e1;border-radius:6px;">
+</label>
+</p>
+<div>
+<button type="button" class="active" id="path-token">Path: Codec + Transformer</button>
+<button type="button" id="path-diff">Path: Diffusion</button>
+</div>
+<div id="pipe-token" style="margin:16px 0;line-height:2.4;">
+<span class="pipe-stage" data-s="0">Text</span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="1">Text encoder</span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="2">Transformer<br><small>next audio tokens</small></span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="3">Codec decoder</span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="4">Waveform</span>
+</div>
+<div id="pipe-diff" style="margin:16px 0;line-height:2.4;display:none;">
+<span class="pipe-stage" data-s="0">Text</span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="1">Text encoder</span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="2">Noise latents</span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="3">Denoise steps<br><small>conditioned</small></span><span class="pipe-arrow">→</span>
+<span class="pipe-stage" data-s="4">Waveform</span>
+</div>
+<button type="button" class="primary" id="pipe-run">Run System</button>
+<button type="button" id="pipe-reset">Reset</button>
+<div class="log" id="pipe-log">Ready.</div>
+</div>
 
-    <hr>
+<hr>
 
-    <h2>5. Suno / Udio — feature → conditioning map</h2>
-    <table>
-        <thead><tr><th>UI feature</th><th>Probable mechanism</th><th>Known?</th></tr></thead>
-        <tbody>
-            <tr><td>Text box</td><td>Text encoder → c</td><td>MusicGen open analogue</td></tr>
-            <tr><td>Lyrics</td><td>Phoneme / vocoder pipeline or second LM</td><td>Opaque</td></tr>
-            <tr><td>Extend</td><td>Codec/latent prefix (L4)</td><td>Partial</td></tr>
-            <tr><td>Cover / remaster</td><td>Audio encoder style embedding</td><td>Opaque</td></tr>
-            <tr><td>Seed</td><td>RNG for sampling</td><td>Yes</td></tr>
-        </tbody>
-    </table>
-    <p>Closed weights ≠ magic — same conditioning vocabulary you learned, plus undisclosed vocoders and post-processing.</p>
+<h2>3. Dissecting Production Platforms: Suno and Udio</h2>
+<p>Commercial music generators (such as Suno and Udio) wrap core generative engines inside specialized production scaffolding:</p>
+<pre class="shape-trail">User Input (Lyrics + Style Tags)
+   │
+   ├──────► [ Lyric Alignment &amp; Phoneme Parser ]
+   │           │
+   │           ▼
+   ├──────► [ Multi-Modal Condition Aggregator ] (Cross-Attention Embeddings)
+   │           │
+   │           ▼
+   └──────► [ Hierarchical Generator ] (AR / Diffusion Backbone)
+               │
+               ▼
+            [ Multi-Track Stems / Codec Latents ]
+               │
+               ▼
+            [ Neural Vocoder + DSP Mastering Pipeline ] (Stereo Widening, Dynamic EQ)
+               │
+               ▼
+            Final Mastered Audio Stream (.mp3 / .wav)</pre>
 
-    <hr>
+<h3>Key Functional Components</h3>
+<ul>
+<li><strong>Lyric and Vocal Alignment:</strong> Models use an internal phoneme tokenizer or text-to-speech alignment head to synchronize vocal synthesis with tempo, ensuring words align with the underlying harmonic progression.</li>
+<li><strong>Audio Extension &amp; Inpainting:</strong> Users can select arbitrary boundaries in a generated track to extend the song or regenerate a specific section (e.g., replacing a guitar solo). This is implemented via masked latent inpainting in diffusion models or audio-prefix caching in autoregressive models.</li>
+<li><strong>Post-Processing &amp; Mastering:</strong> Raw neural network outputs often lack dynamic range or high-frequency stereo clarity. Production stacks run the decoded audio through multi-band compressors, stereo wideners, and limiters to match commercial streaming standards.</li>
+</ul>
 
-    <h2>6. Ethics — detailed</h2>
-    <ul>
-        <li><strong>Copyright:</strong> Prompt authorship ≠ clearance for training-style overlap.</li>
-        <li><strong>Consent:</strong> Artists in training mix without opt-out.</li>
-        <li><strong>Voice cloning:</strong> Timbral conditioning ≈ impersonation risk.</li>
-        <li><strong>Detection:</strong> Watermarks vs adversarial adaptation — no permanent fix.</li>
-        <li><strong>Labor:</strong> Session musicians vs synthetic beds.</li>
-    </ul>
+<hr>
 
-    <p><strong>Discussion prompts</strong></p>
-    <ol>
-        <li>Block prompts naming living artists?</li>
-        <li>Sound-alike vs infringement?</li>
-        <li>When is synthetic voice ethical?</li>
-    </ol>
+<h2>4. Serving Realities: Latency, KV-Caching, and Streaming</h2>
+<p>Deploying audio models in real-time applications (such as interactive gaming or live DAWs) introduces strict serving constraints:</p>
 
-    <div class="quiz">
-        <strong>Quiz 3 (ethics):</strong> Clone professor voice for parody without consent — harms + mitigation?
-        <details><summary>Show answer</summary><p>Harms: impersonation, reputation damage. Mitigation: consent, label synthetic, use fictional voice.</p></details>
-    </div>
-    <div class="quiz">
-        <strong>Quiz 4:</strong> Fix order: decoder → text encoder → transformer → waveform.
-        <details><summary>Show answer</summary><p>Text encoder → transformer → codec decoder → waveform.</p></details>
-    </div>
-    <div class="quiz">
-        <strong>Quiz 5 (numerical):</strong> 10 s AR @ 200 tok/s — approximate token steps?
-        <details><summary>Show answer</summary><p><code>10 × 200 = 2000</code> steps.</p></details>
-    </div>
+<h3>1. The Autoregressive Latency Challenge</h3>
+<p>A 10-second MusicGen generation requires <strong>2,000 sequential token predictions</strong>.</p>
+<ul>
+<li>If a forward pass on a server GPU takes \(15\text{ ms}\), total generation time is:
+<div class="eq-panel">\[ 2,000 \times 0.015\text{ s} = \mathbf{30\text{ seconds of compute (3× slower than real-time)}} \]</div>
+</li>
+</ul>
 
-    <hr>
+<h3>2. Engineering Optimizations</h3>
+<ul>
+<li><strong>Key-Value (KV) Caching:</strong> Stores past attention states (\(K, V\)) in GPU VRAM, preventing the network from recomputing historical context at each step.</li>
+<li><strong>Kernel Fusion (e.g., FlashAttention):</strong> Reduces memory-bandwidth bottlenecks during attention computations.</li>
+<li><strong>Streaming Audio Chunking:</strong> Instead of waiting for the full 2,000-token sequence to finish, the server decodes tokens into audio chunks in rolling windows (e.g., every 50 frames / 1 second) and streams them to the user buffer.</li>
+</ul>
 
-    <h2>7. Capstone rubric</h2>
-    <div class="tool-box">
-        <p><strong>Tools:</strong> <a href="https://musiclab.chromeexperiments.com/Spectrogram/" target="_blank" rel="noopener">Spectrogram</a> · <a href="https://www.google.com/doodles/celebrating-johann-sebastian-bach" target="_blank" rel="noopener">Bach Doodle</a> · <a href="https://huggingface.co/spaces/facebook/MusicGen" target="_blank" rel="noopener">MusicGen</a></p>
-        <p><strong>Deliverables:</strong></p>
-        <ul>
-            <li>L1: whistle vs hum on spectrogram — axis labels.</li>
-            <li>L2: melody vs harmony in Bach — what was c?</li>
-            <li>L3–4: two MusicGen prompts + F and token estimates.</li>
-            <li>Compare MIDI vs codec control in one paragraph.</li>
-            <li>Pipeline paragraph with shapes from §1.</li>
-            <li>Ethics paragraph (commercial release).</li>
-        </ul>
-        <table>
-            <tr><th>Rubric row</th><th>Meets bar</th></tr>
-            <tr><td>Shapes</td><td>Correct sample &amp; frame counts</td></tr>
-            <tr><td>Conditioning</td><td>≥2 modes exemplified</td></tr>
-            <tr><td>Contrast</td><td>MIDI vs neural audio observation</td></tr>
-            <tr><td>Ethics</td><td>Consent OR copyright OR cloning addressed</td></tr>
-        </table>
-    </div>
+<hr>
 
-    <div class="bridge">
-        <strong>Unit complete.</strong> <a href="lesson4.html">← L4</a> · <a href="lesson1.html">L1</a> · Next: image generation (full diffusion math).
-    </div>
+<h2>5. Ethical, Legal, and Societal Implications</h2>
+<p>Generative audio systems raise complex legal and ethical questions regarding dataset sourcing, artistic attribution, and identity rights:</p>
+<pre class="shape-trail">Training Distribution (Scraped Web Audio / Commercial Tracks)
+   │
+   ▼
+[ Deep Neural Encoder &amp; Tokenizer ] ──► Model Weights Store Acoustic &amp; Stylistic Priors
+   │
+   ▼
+Downstream Generation Risks:
+ 1. Direct Style Mimicry ("In the style of [Artist]") ──► Economic substitution
+ 2. Vocal Cloning &amp; Impersonation                   ──► Identity theft, non-consensual deepfakes
+ 3. Verbatim Dataset Memorization                   ──► Copyright infringement (substantial similarity)</pre>
 
+<h3>1. Training Provenance and Copyright</h3>
+<p>Neural codecs and generative backbones are trained on tens of thousands of hours of copyrighted recordings. While model weights do not store audio files directly, they store statistical representations that can reproduce artist-specific timbres, harmonic progressions, and vocal styles. This has led to active litigation over whether training generative audio models constitutes fair use.</p>
 
-    <hr>
+<h3>2. Voice Cloning and Identity Protection</h3>
+<p>Conditioning models on short reference audio clips enables zero-shot vocal cloning. Without strict guardrails, this enables non-consensual impersonation, fraudulent authorizations, and deceptive media.</p>
 
-    <h2>8. Streaming &amp; latency (product reality)</h2>
-    <p>Apps rarely wait for all 2000 tokens before playback. Streaming variants:</p>
-    <ul>
-        <li>Decode overlapping windows as tokens arrive (chunked codec decode).</li>
-        <li>Show UI progress per second generated (~50 frames/s × decode cost).</li>
-        <li>GPU batch size 1 on consumer hardware → AR serial loop dominates MusicGen latency.</li>
-    </ul>
-    <div class="calc-box">
-        <strong>Back-of-envelope:</strong> If each AR step ≈ 20 ms on a GPU, 2000 steps ≈ 40 s wall time (optimistic upper bound; real stacks use KV-cache and fused kernels to do better). Diffusion with 50 steps × 200 ms ≈ 10 s — different hardware profiles cross over.
-    </div>
+<h3>3. Mitigation Strategies in Production</h3>
+<ul>
+<li><strong>Style and Name Filtering:</strong> Reject prompts containing names of living artists to prevent targeted style mimicry.</li>
+<li><strong>Acoustic Watermarking:</strong> Embed imperceptible high-frequency or latent-space watermarks (e.g., AudioSeal) directly into generated audio to allow automated provenance detection.</li>
+<li><strong>Opt-In / Licensed Training Data:</strong> Train foundation models exclusively on ethically sourced, public-domain, or commercially licensed libraries.</li>
+</ul>
 
-    <hr>
+<hr>
 
-    <h2>9. Open vs closed stack comparison</h2>
-    <table>
-        <thead><tr><th></th><th>MusicGen (open)</th><th>Suno / Udio (closed)</th></tr></thead>
-        <tbody>
-            <tr><td>Codec + LM</td><td>Documented EnCodec + transformer</td><td>Assumed similar; not verified</td></tr>
-            <tr><td>Vocals/lyrics</td><td>Instrumental focus in base models</td><td>Integrated lyric + vocal pipelines</td></tr>
-            <tr><td>Post-processing</td><td>Minimal in Space demo</td><td>Mastering, structure tags likely</td></tr>
-            <tr><td>Ethics visibility</td><td>Research papers, weights</td><td>ToS only; training data undisclosed</td></tr>
-        </tbody>
-    </table>
+<h2>Knowledge Verification</h2>
 
-    <hr>
+<div class="quiz">
+<strong>1. Complete Pipeline Inference Arithmetic</strong>
+<p><strong>Question:</strong> You deploy an autoregressive music generation pipeline using a \(32\text{ kHz}\) neural codec with a framing rate of \(50\text{ Hz}\) and \(K = 4\) codebooks (\(V = 2,048\)). A user inputs a prompt and requests <strong>15 seconds</strong> of audio.</p>
+<ol>
+<li>What is the total length of the generated discrete token sequence?</li>
+<li>What is the shape of the continuous latent matrix before passing into the codec decoder?</li>
+<li>Exactly how many floating-point samples will make up the final uncompressed mono PCM waveform?</li>
+</ol>
+<details>
+<summary>Show answer</summary>
+<ol>
+<li>Frames to generate \(= 15\text{ s} \times 50\text{ frames/s} = \mathbf{750\text{ frames}}\). Total tokens \(= 750\text{ frames} \times 4\text{ codebooks} = \mathbf{3,000\text{ discrete tokens}}\).</li>
+<li>Latent matrix shape: <strong><code>(750, 128)</code></strong> (assuming standard embedding dimension \(D = 128\)).</li>
+<li>Final output samples \(= 15\text{ s} \times 32,000\text{ samples/s} = \mathbf{480,000\text{ samples}}\) (PCM tensor of shape <code>(480000,)</code>).</li>
+</ol>
+</details>
+</div>
 
-    <h2>10. Ethics case sketches</h2>
-    <div class="worked">
-        <strong>Case A — Style mimic:</strong> Prompt says “in the style of [living artist].” Model may interpolate training examples. Harm: market substitution; legal unsettled. Mitigation: avoid artist names; use generic descriptors; disclose AI.
-    </div>
-    <div class="worked">
-        <strong>Case B — Voice cover:</strong> Upload 30 s of a singer, “continue in same voice.” Maps to timbre conditioning. Harm: non-consensual imitation. Mitigation: ban uploads of third-party voices; consent forms; audible disclaimers.
-    </div>
-    <div class="worked">
-        <strong>Case C — Dataset provenance:</strong> Codec trained on licensed + scraped audio. Harm: collective creator uncompensated. Mitigation: opt-in licensing (industry in flux); prefer models with documented training.
-    </div>
+<div class="quiz">
+<strong>2. Autoregressive vs. Diffusion Latency Comparison</strong>
+<p><strong>Question:</strong> Compare generating a 10-second audio track across two backends:</p>
+<ul>
+<li><strong>Backend A (Autoregressive):</strong> 2,000 sequential token steps. GPU execution with KV-caching achieves an average of \(6\text{ ms}\) per step.</li>
+<li><strong>Backend B (Latent Diffusion):</strong> 50 iterative denoising steps. Each step computes a full-tensor update across the latent grid, taking \(180\text{ ms}\) per step.</li>
+</ul>
+<p>Which backend finishes generation faster, and by how much?</p>
+<details>
+<summary>Show answer</summary>
+<ol>
+<li>Backend A Latency \(= 2,000\text{ steps} \times 0.006\text{ s} = \mathbf{12.0\text{ seconds}}\).</li>
+<li>Backend B Latency \(= 50\text{ steps} \times 0.180\text{ s} = \mathbf{9.0\text{ seconds}}\).</li>
+<li>Verdict: <strong>Backend B (Diffusion) finishes faster by \(3.0\text{ seconds}\)</strong> (\(9.0\text{ s}\) vs. \(12.0\text{ s}\)).</li>
+</ol>
+</details>
+</div>
 
-    <div class="warn-box">Capstone ethics paragraph should name <em>one</em> concrete risk from above and <em>one</em> mitigation you would actually implement before publishing.</div>
+<hr>
 
-    <hr>
+<h2>Course Summary: The Complete Mental Model</h2>
+<p>Across this unit, we have connected the physics of sound to modern generative architectures:</p>
+<ol>
+<li><strong>The Physical Wave:</strong> Sound is physical air pressure, represented as a 1D sequence of amplitude samples measured at sample rate \(f_s\).</li>
+<li><strong>The Frequency Prism:</strong> The STFT uses sliding window FFTs to convert 1D waveforms into 2D time-frequency spectrograms, bounded by the time-frequency uncertainty principle.</li>
+<li><strong>The Discrete Bottleneck:</strong> Neural Audio Codecs downsample waveforms to low frame rates (\(50\text{ Hz}\)) and use Residual Vector Quantization (RVQ) to produce compact discrete token grids.</li>
+<li><strong>Targeted Conditioning:</strong> Cross-attention and Classifier-Free Guidance (CFG) steer the pre-Softmax logits toward user prompts and reference audio.</li>
+<li><strong>Production Synthesis:</strong> Modern systems combine autoregressive Transformers or latent diffusion backbones with neural decoders to output production-ready audio.</li>
+</ol>
 
-    <h2>11. Capstone — example outline (do not copy verbatim)</h2>
-    <div class="panel">Spectrogram: whistle energy high on frequency axis (~2–4 kHz); hum lower (~150 Hz).
-Bach: 4-bar melody I entered = condition c; upper voices = generated harmony.
-MusicGen A (lo-fi): F≈500 for 10s, ~2000 tokens; heard piano + vinyl noise.
-MusicGen B (metal): distortion on guitars; double-kick; different token IDs hypothesized.
-Compare: Bach gave note-level control; MusicGen gave timbre realism.
-Pipeline: text (L,1024) → AR (2000,) IDs → decoder (320000,) samples.
-Ethics: commercial release needs training-data unknown; would disclose AI and avoid artist-name prompts.</div>
+<div class="bridge">
+<strong>Further reading</strong>
+<ul style="margin:8px 0 0;">
+<li><a href="https://ai.meta.com/blog/audiocraft-musicgen-audiogen-encodec-generative-ai-audio/" target="_blank" rel="noopener">Meta AudioCraft blog</a> — MusicGen / EnCodec overview</li>
+<li><a href="https://github.com/facebookresearch/audiocraft" target="_blank" rel="noopener">AudioCraft repository</a></li>
+<li>Stable Audio / AudioLDM papers — continuous latent diffusion for audio</li>
+</ul>
+</div>
 
-    <div class="quiz">
-        <strong>Quiz 6 (ethics):</strong> Your MusicGen clip accidentally includes a recognizable 4-bar hook from a famous song. Is the hook “in the tokens” or “in your prompt”? What do you do?
-        <details><summary>Show answer</summary><p>Likely memorization/statistical overlap in weights, not something you typed. Do not commercialize without legal review; regenerate with different seed/prompt; disclose uncertainty.</p></details>
-    </div>
-
-
-    <hr>
-    <h2>12. Unit synthesis diagram (mental model)</h2>
-    <div class="info-box">
-        <p style="margin-top:0;"><strong>Text path:</strong> string → text tokens → embeddings → biases audio LM.</p>
-        <p><strong>Audio path:</strong> waveform ↔ codec IDs ↔ latent frames (RVQ) ↔ waveform.</p>
-        <p><strong>Control:</strong> c enters every AR step (or every diffusion step).</p>
-        <p style="margin-bottom:0;"><strong>Products:</strong> wrap LM + decoder with lyrics, UI, legal, hosting.</p>
-    </div>
-
-    <hr>
-    <h2>13. Diffusion inference checklist (usable without SDE math)</h2>
-    <ol class="guided">
-        <li>Pick step count T (e.g. 50) — more steps often cleaner, slower.</li>
-        <li>Encode prompt → condition vector (same encoders as AR systems).</li>
-        <li>Sample initial noise z<sub>T</sub> with same shape as training latents.</li>
-        <li>Loop t = T…1: update z using network prediction (noise or x0).</li>
-        <li>Apply CFG by blending conditional and unconditional predictions each step.</li>
-        <li>Feed final z through vocoder/decoder → waveform (L1 samples).</li>
-    </ol>
-    <p>Image unit will name the prediction target and derive the update rule; here you only need the control flow to read papers and UIs.</p>
-
-    <hr>
-    <h2>14. After the capstone — reflection questions</h2>
-    <ol>
-        <li>Where did you have <em>most</em> control: Bach, MusicGen text, or MusicGen audio prompt?</li>
-        <li>Which representation would you choose for a game soundtrack editor — MIDI, codec tokens, or diffusion latents — and why?</li>
-        <li>What single policy would you add to a school deployment of Suno-like tools?</li>
-    </ol>
-
-
-    <hr>
-    <h2>15. Glossary tie-back (Lessons 1–5)</h2>
-    <table>
-        <thead><tr><th>Term</th><th>Introduced</th><th>Role in pipeline</th></tr></thead>
-        <tbody>
-            <tr><td>Sample / waveform</td><td>L1</td><td>Final output (T,) floats</td></tr>
-            <tr><td>Spectrogram</td><td>L1</td><td>Human/debug view; some diff models use spec latents</td></tr>
-            <tr><td>MIDI event</td><td>L2</td><td>Symbolic alternative condition</td></tr>
-            <tr><td>Codebook / RVQ</td><td>L3</td><td>Compress audio → IDs</td></tr>
-            <tr><td>Condition c</td><td>L4</td><td>Steer token probabilities</td></tr>
-            <tr><td>CFG / guidance</td><td>L4</td><td>Sharpen adherence to c</td></tr>
-            <tr><td>AR vs diffusion</td><td>L5</td><td>Two generation loops to waveform</td></tr>
-        </tbody>
-    </table>
-
-    <div class="quiz">
-        <strong>Quiz 7 (shape trail):</strong> 12 s mono 32 kHz — frames F and AR steps (50 Hz, K=4)?
-        <details><summary>Show answer</summary><p><code>F = 600</code>; AR steps ≈ <code>600 × 4 = 2400</code>.</p></details>
-    </div>
-
-
-    <hr>
-    <h2>16. Pseudocode — diffusion path (parallel to §2)</h2>
-    <div class="panel"># Diffusion audio (high level — math deferred to image unit)
-c = text_encoder(tokenize(prompt))
-z = randn(latent_shape)                    # noise at step T
-for t in reversed(range(1, T+1)):
-    eps_cond = denoiser(z, t, condition=c)
-    eps_uncond = denoiser(z, t, condition=null)
-    eps = eps_uncond + w * (eps_cond - eps_uncond)   # CFG
-    z = scheduler_step(z, eps, t)          # update rule taught in image unit
-waveform = vocoder(z)                      # (T,) samples</div>
-
-    <p>Compare to §2: AR loops over <em>token indices</em>; diffusion loops over <em>continuous z</em>. Both accept the same text condition c from Lesson 4.</p>
-
-    <hr>
-    <h2>17. Deliverable template (copy into your writeup)</h2>
-    <table>
-        <tr><th>Section</th><th>Your notes (fill in)</th></tr>
-        <tr><td>Spectrogram observation</td><td>&nbsp;</td></tr>
-        <tr><td>Bach condition vs generation</td><td>&nbsp;</td></tr>
-        <tr><td>MusicGen prompt A / B</td><td>&nbsp;</td></tr>
-        <tr><td>F and token count</td><td>&nbsp;</td></tr>
-        <tr><td>MIDI vs codec comparison</td><td>&nbsp;</td></tr>
-        <tr><td>Pipeline shapes</td><td>&nbsp;</td></tr>
-        <tr><td>Ethics risk + mitigation</td><td>&nbsp;</td></tr>
-    </table>
-
-    <hr>
-    <h2>Further reading</h2>
-    <ul>
-        <li><a href="https://github.com/facebookresearch/audiocraft" target="_blank" rel="noopener">AudioCraft</a></li>
-        <li>Modules 4–5 (<em>Machine Learning for Music</em>, instructor permission)</li>
-    </ul>
-
+<table border="0" width="100%" style="margin-top:30px;">
+<tr>
+<td align="left"><button onclick="window.location.href='lesson4.html'" style="padding: 10px 20px; cursor: pointer;">Previous: Lesson 4</button></td>
+<td align="right"><button onclick="window.location.href='../'" style="padding: 10px 20px; cursor: pointer; font-weight: bold;">Back to Unit</button></td>
+</tr>
+</table>
 
 </div>
 
@@ -527,24 +461,32 @@ waveform = vocoder(z)                      # (T,) samples</div>
 
     function playResult(prompt) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        var hash = 0;
-        for (var i = 0; i < prompt.length; i++) hash = ((hash << 5) - hash) + prompt.charCodeAt(i);
-        var base = 220 + (Math.abs(hash) % 200);
-        var t0 = audioCtx.currentTime + 0.02;
-        [0, 4, 7, 12].forEach(function (semi, i) {
-            var osc = audioCtx.createOscillator();
-            var g = audioCtx.createGain();
-            osc.type = path === 'diff' ? 'sine' : 'triangle';
-            osc.frequency.value = base * Math.pow(2, semi / 12);
-            g.gain.setValueAtTime(0.0001, t0 + i * 0.15);
-            g.gain.exponentialRampToValueAtTime(0.1, t0 + i * 0.15 + 0.03);
-            g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * 0.15 + 0.35);
-            osc.connect(g);
-            g.connect(audioCtx.destination);
-            osc.start(t0 + i * 0.15);
-            osc.stop(t0 + i * 0.15 + 0.4);
-        });
+        function schedule() {
+            var hash = 0;
+            for (var i = 0; i < prompt.length; i++) hash = ((hash << 5) - hash) + prompt.charCodeAt(i);
+            var base = 220 + (Math.abs(hash) % 200);
+            var t0 = audioCtx.currentTime + 0.05;
+            [0, 4, 7, 12].forEach(function (semi, i) {
+                var osc = audioCtx.createOscillator();
+                var g = audioCtx.createGain();
+                var start = t0 + i * 0.15;
+                var end = start + 0.35;
+                osc.type = path === 'diff' ? 'sine' : 'triangle';
+                osc.frequency.value = base * Math.pow(2, semi / 12);
+                g.gain.setValueAtTime(0.001, start);
+                g.gain.linearRampToValueAtTime(0.12, start + 0.03);
+                g.gain.linearRampToValueAtTime(0.001, end);
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                osc.start(start);
+                osc.stop(end + 0.02);
+            });
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().then(schedule);
+        } else {
+            schedule();
+        }
     }
 
     function run() {

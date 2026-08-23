@@ -6,6 +6,17 @@
 <body>
 
 <div class="genai-lesson-container">
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true
+    }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <style>
 
         .genai-lesson-container {
@@ -127,374 +138,317 @@
         .genai-lesson-container ol.guided li { margin-bottom: 8px; }
 
     </style>
+<h1>Lesson 4: Steering the AI (Conditioning Mechanisms &amp; Guidance)</h1>
 
+<p>In Lesson 3, we turned continuous audio waveforms into discrete streams of neural codec tokens.</p>
+<p>An unconstrained autoregressive Transformer trained on these tokens will generate audio that sounds like a random walk through its training distribution. It might drift from a classical piano sonata into heavy metal guitar feedback, followed by a snippet of spoken podcast dialogue.</p>
+<p>To build useful generative models, we need a mathematical steering wheel.</p>
+<p><strong>Conditioning</strong> is the mechanism that reshapes the probability distribution at every single autoregressive step. Instead of sampling from a generic prior \(P(a_t \mid a_{&lt;t})\), we condition generation on an external control signal \(c\):</p>
+<div class="eq-panel">\[ P(a_t \mid a_{1}, \dots, a_{t-1}, \mathbf{c}) \]</div>
+<p>Where \(\mathbf{c}\) can be a natural language prompt (<code>"lo-fi hip hop beat with warm piano"</code>), an audio prefix (continuing an existing 3-second recording), a melody pitch contour, or an empty set (\(\emptyset\)).</p>
 
-    <h1>Steering the AI (Conditioning)</h1>
-    <div class="roadmap"><strong>Unit roadmap — Intro to Audio Generation</strong>
-        <ol>
-            <li>1. Sound as waveforms &amp; spectrograms</li>
-            <li>2. Recipes (MIDI) vs records (raw audio)</li>
-            <li>3. Audio tokens &amp; neural codecs</li>
-            <li class="here">4. Conditioning — steering generation ← <em>you are here</em></li>
-            <li>5. Real systems (AudioCraft, Suno…) &amp; ethics</li>
-        </ol>
-    </div>
+<hr>
 
-    <p><strong>Goal:</strong> Formalize <code>P(a<sub>t</sub> | a<sub>&lt;t</sub>, c)</code>, shift probability mass with worked softmax numbers, trace text → embeddings → cross-attention, size audio prefixes, and practice MusicGen A/B prompts.</p>
+<div class="roadmap"><strong>Course Roadmap — Intro to Audio Generation</strong>
+<ol>
+<li>1. <strong>Sound as Waveforms &amp; Spectrograms</strong></li>
+<li>2. <strong>Recipes (MIDI) vs. Records (Raw Audio)</strong></li>
+<li>3. <strong>Audio Tokens &amp; Neural Codecs (EnCodec, SoundStream, DAC)</strong></li>
+<li class="here">4. <strong>Conditioning Mechanisms: Steering Audio Models</strong> <em>(You are here)</em></li>
+<li>5. <strong>Modern Architectures (AudioCraft, Diffusion Models) &amp; Evaluation</strong></li>
+</ol>
+</div>
 
-    <div class="bridge">
-        <strong>From Lesson 3:</strong> Codec tokens are the vocabulary; the LM could sample blindly.<br>
-        <strong>Here:</strong> Condition <code>c</code> (text, tags, audio prefix) reshapes each step’s softmax.
-    </div>
+<hr>
 
-    <hr>
+<h2>1. How Conditioning Reshapes the Softmax Distribution</h2>
+<p>At any generation step \(t\), the final linear layer of an audio language model outputs a vector of raw, unnormalized scores called <strong>logits</strong> (\(z_1, z_2, \dots, z_V\)) across the vocabulary of \(V\) codebook entries.</p>
+<p>The model converts these logits into a valid probability distribution using the <strong>Softmax function</strong>:</p>
+<div class="eq-panel">\[ P(a_t = i \mid a_{&lt;t}, \mathbf{c}) = \frac{\exp(z_i)}{\sum_{j=1}^{V} \exp(z_j)} \]</div>
+<p>Conditioning does not alter the sampling formula itself. Instead, <strong>it modifies the underlying logit vector \(z\) before the Softmax is evaluated.</strong></p>
 
-    <h2>0. Formal objective</h2>
-    <div class="eq-panel">
-        P(a<sub>t</sub> | a<sub>1</sub>,…,a<sub>t−1</sub>, <strong>c</strong>) &nbsp; where c may be text embeddings, codec prefix, melody, or ∅
-    </div>
+<h3>Worked Numerical Example: Unconditioned vs. Conditioned Logits</h3>
+<p>Consider a toy vocabulary of 5 prototype sound tokens:</p>
+<div class="eq-panel">\[ \text{Vocabulary} = \{\text{soft\_pad}, \text{guitar\_pluck}, \text{distorted\_riff}, \text{brush\_kit}, \text{glitch\_noise}\} \]</div>
 
-    <div class="primer-box">
-        <h3 style="margin-top:0;">Condition types you will meet</h3>
-        <ul style="margin-bottom:0;">
-            <li><strong>Text</strong> — natural language prompts.</li>
-            <li><strong>Audio prefix</strong> — first N codec tokens copied from a clip.</li>
-            <li><strong>Classifier-free dropout</strong> — c=∅ during training for guidance at inference.</li>
-            <li><strong>Symbolic</strong> — MIDI-like melody matrices (Bach Doodle).</li>
-        </ul>
-    </div>
+<h4>Case A: Unconditioned Generation (\(\mathbf{c} = \emptyset\))</h4>
+<p>When no condition is supplied, the network relies on its baseline training priors. The logits are nearly uniform:</p>
+<table>
+<tr><th>Token (\(i\))</th><th>Logit (\(z_i\))</th><th>Exponential \(\exp(z_i)\)</th><th>Probability \(P(i)\)</th></tr>
+<tr><td><code>soft_pad</code></td><td>\(1.0\)</td><td>\(\exp(1.0) \approx 2.718\)</td><td>\(\mathbf{19.4\%}\)</td></tr>
+<tr><td><code>guitar_pluck</code></td><td>\(1.2\)</td><td>\(\exp(1.2) \approx 3.320\)</td><td>\(\mathbf{23.7\%}\)</td></tr>
+<tr><td><code>distorted_riff</code></td><td>\(0.8\)</td><td>\(\exp(0.8) \approx 2.226\)</td><td>\(\mathbf{15.9\%}\)</td></tr>
+<tr><td><code>brush_kit</code></td><td>\(1.1\)</td><td>\(\exp(1.1) \approx 3.004\)</td><td>\(\mathbf{21.5\%}\)</td></tr>
+<tr><td><code>glitch_noise</code></td><td>\(1.0\)</td><td>\(\exp(1.0) \approx 2.718\)</td><td>\(\mathbf{19.4\%}\)</td></tr>
+<tr><td><strong>Total Sum</strong></td><td>—</td><td>\(\sum \approx 13.986\)</td><td><strong>\(100.0\%\)</strong></td></tr>
+</table>
+<p>The distribution is diffuse. The sampler is almost equally likely to emit a chill synth pad, a drum brush, or a distorted riff.</p>
 
-    <hr>
+<h4>Case B: Conditioned on Prompt \(\mathbf{c} = \text{"Heavy Metal, Electric Guitar"}\)</h4>
+<p>Through cross-attention to the prompt, the network injects strong positive energy into guitar/metal tokens (\(\Delta z = +2.0\)) and suppresses calm/acoustic tokens (\(\Delta z = -1.0\)):</p>
+<table>
+<tr><th>Token (\(i\))</th><th>Conditioned Logit (\(z_i\))</th><th>Exponential \(\exp(z_i)\)</th><th>Probability \(P(i)\)</th></tr>
+<tr><td><code>soft_pad</code></td><td>\(1.0 - 1.0 = \mathbf{0.0}\)</td><td>\(\exp(0.0) = 1.000\)</td><td>\(\mathbf{3.3\%}\)</td></tr>
+<tr><td><code>guitar_pluck</code></td><td>\(1.2 - 1.0 = \mathbf{0.2}\)</td><td>\(\exp(0.2) \approx 1.221\)</td><td>\(\mathbf{4.0\%}\)</td></tr>
+<tr><td><code>distorted_riff</code></td><td>\(0.8 + 2.0 = \mathbf{2.8}\)</td><td>\(\exp(2.8) \approx 16.445\)</td><td>\(\mathbf{53.6\%}\)</td></tr>
+<tr><td><code>brush_kit</code></td><td>\(1.1 - 1.0 = \mathbf{0.1}\)</td><td>\(\exp(0.1) \approx 1.105\)</td><td>\(\mathbf{3.6\%}\)</td></tr>
+<tr><td><code>glitch_noise</code></td><td>\(1.0 + 1.0 = \mathbf{2.0}\)</td><td>\(\exp(2.0) \approx 7.389\)</td><td>\(\mathbf{24.1\%}\)</td></tr>
+<tr><td><strong>Total Sum</strong></td><td>—</td><td>\(\sum \approx 30.670\)</td><td><strong>\(100.0\%\)</strong></td></tr>
+</table>
+<p>Because exponentiation acts multiplicatively, shifting the logit of <code>distorted_riff</code> up to \(2.8\) causes its probability mass to jump from <strong>\(15.9\%\) to \(53.6\%\)</strong>, heavily biasing the autoregressive engine toward the desired genre.</p>
 
-    <h2>1. Unconditioned vs conditioned — worked softmax (5 tokens)</h2>
-    <div class="worked">
-        <p><strong>Unconditioned logits → softmax</strong> (c = ∅):</p>
-        <table>
-            <tr><th>Token</th><th>Logit</th><th>P (%)</th></tr>
-            <tr><td>soft_pad</td><td>1.0</td><td>20.0</td></tr>
-            <tr><td>guitar_pluck</td><td>1.2</td><td>24.4</td></tr>
-            <tr><td>distorted_riff</td><td>0.8</td><td>16.4</td></tr>
-            <tr><td>brush_kit</td><td>1.1</td><td>22.1</td></tr>
-            <tr><td>glitch_noise</td><td>1.0</td><td>20.0</td></tr>
-        </table>
-        <p>Relatively flat — chaotic token competitive.</p>
-
-        <p><strong>Conditioned</strong> on Metal + Guitar + Aggressive (add +2 to matches, −1 to mismatches):</p>
-        <table>
-            <tr><th>Token</th><th>Adj logit</th><th>P (%)</th></tr>
-            <tr><td>soft_pad</td><td>0.0</td><td>6.5</td></tr>
-            <tr><td>guitar_pluck</td><td>0.2</td><td>7.9</td></tr>
-            <tr><td>distorted_riff</td><td>2.8</td><td><strong>53.6</strong></td></tr>
-            <tr><td>brush_kit</td><td>0.1</td><td>7.2</td></tr>
-            <tr><td>glitch_noise</td><td>2.0</td><td>24.1</td></tr>
-        </table>
-        <p>Mass concentrates on style-aligned tokens — same vocabulary, different story.</p>
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 1:</strong> Why softmax instead of raw logits?
-        <details><summary>Show answer</summary><p>Positive entries summing to 1 → valid probability distribution for sampling.</p></details>
-    </div>
-
-    <hr>
-
-    <h2>2. Text → condition c (implementation sketch)</h2>
-    <ol class="guided">
-        <li>Tokenize prompt → IDs <code>(L,)</code>.</li>
-        <li>Embed → <code>(L, d<sub>text</sub>)</code> e.g. d=1024.</li>
-        <li>Transformer audio blocks use <strong>cross-attention</strong>: queries from audio, keys/values from text.</li>
-        <li>Alternative: prepend text tokens to audio stream (prefix LM).</li>
-    </ol>
-
-    <figure>
-        <img src="assets/m4_diffusion_cond.png" alt="Text conditioning">
-        <figcaption>Text embeddings steer denoising / generation. Adapted from <em>Machine Learning for Music</em> Module 4 (ISMIR 2024), used with instructor permission.</figcaption>
-    </figure>
-    <figure>
-        <img src="assets/m4_musicgen_arch.png" alt="MusicGen architecture">
-        <figcaption>MusicGen decoder-only transformer with text + audio tokens. Adapted from <em>Machine Learning for Music</em> Module 4, used with instructor permission.</figcaption>
-    </figure>
-
-    <div class="shape-trail">"lo-fi piano" → Tokenizer → (L,) IDs → T5 encoder → (L, 1024)
-Audio stream a_&lt;t: (t,) interleaved codec IDs → embed → (t, d) → layers with cross-attn to text → logits (2048,)</div>
-
-    <hr>
-
-    <h2>3. Audio continuation — prefix frame math</h2>
-    <div class="worked">
-        <strong>3 s audio prompt @ 50 Hz, K=4</strong>
-        <ul>
-            <li>Prefix frames: <code>F = 3 × 50 = 150</code></li>
-            <li>Prefix tokens: <code>150 × 4 = 600</code> IDs (fixed, not resampled)</li>
-            <li>Generate +5 s new: ~<code>5 × 50 × 4 = 1000</code> additional AR steps</li>
-            <li>Model computes <code>P(a<sub>601</sub> | a<sub>1:600</sub>, c)</code> onward.</li>
-        </ul>
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 2:</strong> 2.5 s prefix — frames?
-        <details><summary>Show answer</summary><p><code>125</code> frames.</p></details>
-    </div>
-
-    <hr>
-
-    <h2>4. Classifier-free guidance (CFG) — brief</h2>
-    <div class="eq-panel">logits<sub>guided</sub> = logits<sub>∅</sub> + w · (logits<sub>c</sub> − logits<sub>∅</sub>)</div>
-    <p>Train with random dropout of c. At inference, w&gt;1 pushes toward prompt. Image diffusion unit derives this deeply; for AR audio, apply same linear blend on token logits before softmax.</p>
-
-    <div class="warn-box">High w can cause metallic artifacts or mode collapse — trade quality vs adherence.</div>
-
-    <hr>
-
-    <h2>5. Conditioning modes table</h2>
-    <table>
-        <thead><tr><th>Mode</th><th>Input c</th><th>Example product behavior</th></tr></thead>
-        <tbody>
-            <tr><td>Unconditioned</td><td>∅</td><td>Random paste</td></tr>
-            <tr><td>Text</td><td>Prompt embeddings</td><td>MusicGen default</td></tr>
-            <tr><td>Continuation</td><td>Codec prefix</td><td>Extend clip</td></tr>
-            <tr><td>Melody</td><td>Symbolic grid</td><td>Bach Doodle harmony</td></tr>
-            <tr><td>Multi</td><td>Text + audio</td><td>Style + reference</td></tr>
-        </tbody>
-    </table>
-
-    <h3>Bach Doodle recall (Lesson 2)</h3>
-    <p>You entered a <strong>melody</strong> (condition). Coconet sampled <strong>harmony</strong> voices conditioned on that melody — not raw waveform tokens, but the same probabilistic pattern: <code>P(notes | melody)</code> instead of <code>P(audio_tokens | text)</code>.</p>
-
-    <hr>
-
-    <h2>6. Guided lab: Prompt Steering Board</h2>
-    <p>Cartoon of <code>P(token | genre, instrument, mood)</code>. Compare to §1 numbers.</p>
 <div class="interactive-box">
-        <p style="margin-top:0;"><strong>Genre</strong></p>
-        <div id="tags-genre"></div>
-        <p><strong>Instrument</strong></p>
-        <div id="tags-inst"></div>
-        <p><strong>Mood</strong></p>
-        <div id="tags-mood"></div>
-        <p style="font-size:0.9em;color:#64748b;">Active prompt: <code id="active-prompt">()</code></p>
-        <button type="button" id="clear-tags">Clear all tags (unconditioned)</button>
-        <h3 style="margin-bottom:8px;">Mock next-token probabilities</h3>
-        <div id="prob-chart"></div>
-        <p id="steer-note" style="font-size:0.88em;color:#64748b;margin-bottom:0;"></p>
-    </div>
-    <p style="font-size:0.92em;color:#475569;">Implementation: hand-tuned scores → softmax. Clearing tags restores flat prior — matches unconditioned row in worked example.</p>
+<strong>Interactive: Softmax from logits</strong>
+<p style="margin:8px 0 12px;font-size:0.95em;color:#475569;">Edit the five logits. The bars are \(\exp(z_i)/\sum\exp(z_j)\). Try the unconditioned row \((1.0, 1.2, 0.8, 1.1, 1.0)\), then the conditioned row \((0.0, 0.2, 2.8, 0.1, 2.0)\).</p>
+<div id="sm-inputs"></div>
+<div id="sm-bars"></div>
+<p class="status" id="sm-sum" style="font-size:0.88em;color:#64748b;"></p>
+</div>
 
-    <hr>
+<hr>
 
-    <h2>7. MusicGen A/B lab + results table</h2>
-    <div class="tool-box">
-        <p><strong>Space:</strong> <a href="https://huggingface.co/spaces/facebook/MusicGen" target="_blank" rel="noopener">MusicGen HF</a></p>
-        <table>
-            <thead><tr><th>#</th><th>Prompt</th><th>Instruments overheard</th><th>Failure modes</th></tr></thead>
-            <tbody>
-                <tr><td>A</td><td><code>calm lo-fi hip hop, dusty drums, warm electric piano, rainy night</code></td><td></td><td></td></tr>
-                <tr><td>B</td><td><code>aggressive stadium rock, palm-muted guitars, double-kick drums</code></td><td></td><td></td></tr>
-                <tr><td>C</td><td><code>music</code></td><td></td><td></td></tr>
-            </tbody>
-        </table>
-        <ol class="guided">
-            <li>Run A/B/C; note duration for frame math.</li>
-            <li>List token <em>categories</em> likely boosted (pads, distortion, cymbals).</li>
-            <li>Contrast C vs A: specificity vs generic prior.</li>
-            <li>Try audio-prompt extend if available — verify §3 prefix counts.</li>
-            <li>Document one “prompt ignored” case and hypothesize why (CFG low, tag OOD, duration too short).</li>
-        </ol>
-    </div>
+<h2>2. Text Conditioning via Cross-Attention</h2>
+<p>In production systems like Meta's <strong>MusicGen</strong>, text instructions are not concatenated as prefix tokens in the main sequence. Instead, text conditioning is injected via <strong>Cross-Attention</strong> layers embedded within every Transformer decoder block.</p>
+<pre class="shape-trail">Text Prompt: "Calm lo-fi piano"
+   │
+   ▼
+[ Frozen Text Encoder (e.g., T5-Large) ]
+   │
+   ▼
+Text Embeddings E_text ∈ ℝ^(L × d_text)
+   │
+   ├───────────────────────────────┐
+   │ (Keys K_text, Values V_text)  │
+   ▼                               ▼
+[ Transformer Decoder Block 1 ] ──► [ Transformer Decoder Block N ]
+   ▲                               ▲
+   │ (Queries Q_audio)             │ (Queries Q_audio)
+Audio Token Stream a_&lt;t ───────────┴───────────────────────────────</pre>
 
-    <h3>Step-by-step conditioned AR (one token)</h3>
-    <div class="panel">h = Transformer(audio[:t], cross_attn(text_emb))
-logits = LM_head(h[-1])
-logits = logits_uncond + w * (logits - logits_uncond)   # CFG optional
-a_t = sample(softmax(logits / temperature))</div>
+<figure>
+<img src="assets/m4_musicgen_arch.png" alt="Text encoder, audio tokens, transformer decoder, audio decoder">
+<figcaption><strong>Figure.</strong> MusicGen-style stack: text encoder + audio tokens → transformer decoder (causal self-attention + cross-attention) → audio decoder → waveform. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
+<figure>
+<img src="assets/m4_diffusion_cond.png" alt="Three DiT conditioning block designs">
+<figcaption><strong>Figure.</strong> Three ways a condition \(c\) can enter a generative block: adaptive layer-norm, extra cross-attention, or concatenate on the sequence. MusicGen uses cross-attention; diffusion transformers often use adaLN. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
 
-    <div class="quiz">
-        <strong>Quiz 3:</strong> 3 s drums only → extend 5 s, no text. Mode?
-        <details><summary>Show answer</summary><p>Audio continuation.</p></details>
-    </div>
-    <div class="quiz">
-        <strong>Quiz 4:</strong> Two failure modes when prompt says “jazz” but EDM appears.
-        <details><summary>Show answer</summary><p>Weak guidance; training prior bias; ambiguous prompt; conflicting tags.</p></details>
-    </div>
-    <div class="quiz">
-        <strong>Quiz 5 (numerical):</strong> Prefix 4 s @ 50 Hz — how many prefix tokens with K=4?
-        <details><summary>Show answer</summary><p><code>4 × 50 × 4 = 800</code> tokens.</p></details>
-    </div>
+<h3>The Cross-Attention Mechanism</h3>
+<ol>
+<li><strong>Text Encoding:</strong> A frozen pre-trained text model (such as T5-Large or CLAP) transforms a prompt of length \(L\) into a continuous sequence of contextual vectors \(E_{\text{text}} \in \mathbb{R}^{L \times d_{\text{text}}}\).</li>
+<li><strong>Key/Value Projections:</strong> These text embeddings are projected into Key (\(K_{\text{text}}\)) and Value (\(V_{\text{text}}\)) matrices and cached once:
+<div class="eq-panel">\[ K_{\text{text}} = E_{\text{text}} W_K, \quad V_{\text{text}} = E_{\text{text}} W_V \]</div>
+</li>
+<li><strong>Audio Queries:</strong> At each generation step \(t\), the current state of the generated audio tokens \(a_{&lt;t}\) forms the Query matrix (\(Q_{\text{audio}} = H_{\text{audio}} W_Q\)).</li>
+<li><strong>Attention Computation:</strong>
+<div class="eq-panel">\[ \text{CrossAttention}(Q_{\text{audio}}, K_{\text{text}}, V_{\text{text}}) = \text{softmax}\left(\frac{Q_{\text{audio}} K_{\text{text}}^T}{\sqrt{d_k}}\right) V_{\text{text}} \]</div>
+</li>
+</ol>
+<p>This formulation allows the model to dynamically look up relevant tokens from the prompt at every step. When generating a solo section, the queries attend heavily to <code>"piano"</code>; when laying down the rhythmic groove, they attend to <code>"lo-fi beat"</code>.</p>
 
-    <div class="bridge">
-        <strong>Next — Lesson 5:</strong> Full pipelines, diffusion contrast, products, ethics.<br>
-        → <a href="lesson5.html">Lesson 5</a> · <a href="lesson3.html">← Lesson 3</a>
-    </div>
+<hr>
 
-    <p style="font-size:0.92em;color:#64748b;">Before leaving: redo Quiz 5 (800 prefix tokens for 4 s) and Quiz 8 (2000 text-only steps) without looking — frame math should be automatic by Lesson 5.</p>
+<h2>3. Audio Prompting &amp; Continuation: Working with Prefixes</h2>
+<p>Conditioning is not limited to text. In <strong>Audio Continuation</strong>, the model extends an existing audio snippet while preserving its key, tempo, and timbre.</p>
+<p>Because neural codecs represent audio as a regular grid of \((F \times K)\) discrete indices, audio conditioning is exact:</p>
+<ol>
+<li>Pass a reference audio clip of duration \(T_{\text{prefix}}\) through the frozen neural codec encoder.</li>
+<li>Quantize the latents into \(F_{\text{prefix}} \times K\) discrete token IDs.</li>
+<li>Lock these prefix tokens into the Transformer's context buffer as fixed historical tokens (\(a_1, \dots, a_{N_{\text{prefix}}}\)).</li>
+<li>Run standard autoregressive sampling starting strictly at index \(N_{\text{prefix}} + 1\).</li>
+</ol>
+<pre class="shape-trail">Audio Prefix (Fixed History):           Generated Continuation (Sampled):
+Frame 0      Frame 1      ...  Frame F   Frame F+1    Frame F+2    ...
+[ k1,0 ] ──► [ k1,1 ] ──► ... ──► [ k1,F ] ──► [ k1,F+1 ] ──► [ k1,F+2 ] ──► ...
+[ k2,0 ] ──► [ k2,1 ] ──► ... ──► [ k2,F ] ──► [ k2,F+1 ] ──► [ k2,F+2 ] ──► ...
+[ k3,0 ] ──► [ k3,1 ] ──► ... ──► [ k3,F ] ──► [ k3,F+1 ] ──► [ k3,F+2 ] ──► ...
+[ k4,0 ] ──► [ k4,1 ] ──► ... ──► [ k4,F ] ──► [ k4,F+1 ] ──► [ k4,F+2 ] ──► ...
+└──────────────┬────────────────────────┘ └──────────────┬───────────────────┘
+   Copied directly from Reference Audio     Generated Autoregressively by LM</pre>
 
+<h3>Worked Calculation: Prefix Token Budget</h3>
+<p>Assume a \(32\text{ kHz}\) neural codec with a framing rate of \(50\text{ Hz}\) and \(K = 4\) residual codebooks.</p>
+<p>To provide a <strong>4.0-second drum loop</strong> as a prompt and generate <strong>6.0 seconds of new music</strong>:</p>
+<ul>
+<li>Prefix Frames: \(F_{\text{prefix}} = 4.0\text{ s} \times 50\text{ frames/s} = \mathbf{200\text{ frames}}\)</li>
+<li>Prefix Tokens: \(200\text{ frames} \times 4\text{ codebooks} = \mathbf{800\text{ tokens}}\)</li>
+<li>New Frames to Generate: \(F_{\text{gen}} = 6.0\text{ s} \times 50\text{ frames/s} = \mathbf{300\text{ frames}}\)</li>
+<li>New Token Steps: \(300\text{ frames} \times 4\text{ codebooks} = \mathbf{1,200\text{ tokens}}\)</li>
+<li>Total Sequence Length: \(800 + 1,200 = \mathbf{2,000\text{ tokens}}\)</li>
+</ul>
 
-    <hr>
+<hr>
 
-    <h2>8. Sampling knobs — temperature &amp; top-p (text and audio)</h2>
-    <p>After conditioning shifts logits, sampling chooses the actual next token:</p>
-    <ul>
-        <li><strong>Temperature τ:</strong> divide logits by τ before softmax. τ &lt; 1 sharpens (safer, repetitive); τ &gt; 1 flattens (wilder).</li>
-        <li><strong>Top-p (nucleus):</strong> truncate to smallest set whose cumulative prob ≥ p, renormalize, sample.</li>
-    </ul>
-    <div class="worked">
-        <strong>Toy effect:</strong> If conditioned probs are 54% riff / 24% glitch / 22% others, τ=0.7 pushes riff higher still; τ=1.3 lets glitch compete — same c, different randomness.
-    </div>
+<h2>4. Classifier-Free Guidance (CFG): Amplifying Adherence</h2>
+<p>Even with cross-attention, autoregressive models often under-index on prompt conditioning. Left to standard sampling, the model may default to generic pop progressions rather than following nuanced prompt instructions like <code>"ambient drone with microtonal flute"</code>.</p>
+<p><strong>Classifier-Free Guidance (CFG)</strong> forces the model to adhere strictly to its conditioning signal without requiring a separate classifier network.</p>
 
-    <hr>
+<h3>How CFG Works</h3>
+<ol>
+<li><strong>Training with Dropout:</strong> During training, the conditioning signal \(\mathbf{c}\) is randomly dropped (replaced with a null token \(\emptyset\)) on a fraction of batches (typically \(10\text{ to }20\%\)). The single Transformer learns both the conditional distribution \(P(a_t \mid a_{&lt;t}, \mathbf{c})\) and the unconditional prior \(P(a_t \mid a_{&lt;t}, \emptyset)\).</li>
+<li><strong>Dual Inference Forward Pass:</strong> At inference time, the model executes two forward passes at every step:
+<ul>
+<li>A conditional forward pass producing logits: \(z_{\mathbf{c}} = \text{Model}(a_{&lt;t}, \mathbf{c})\)</li>
+<li>An unconditional forward pass producing logits: \(z_{\emptyset} = \text{Model}(a_{&lt;t}, \emptyset)\)</li>
+</ul>
+</li>
+<li><strong>Linear Extrapolation:</strong> The final guided logit vector is computed by moving away from the unconditional baseline in the direction of the prompt:
+<div class="eq-panel">\[ z_{\text{guided}} = z_{\emptyset} + w \cdot (z_{\mathbf{c}} - z_{\emptyset}) \]</div>
+Where \(w \ge 1.0\) is the <strong>Guidance Scale</strong> (or CFG weight).
+</li>
+</ol>
+<pre class="shape-trail">Logit Space Extrapolation:
 
-    <h2>9. Cross-attention — qualitative one-step picture</h2>
-    <p>At audio token step t, a single cross-attention head might allocate weight:</p>
-    <table>
-        <tr><th>Text token</th><th>Attention weight (illustrative)</th></tr>
-        <tr><td>"lo-fi"</td><td>0.35</td></tr>
-        <tr><td>"piano"</td><td>0.40</td></tr>
-        <tr><td>"rainy"</td><td>0.15</td></tr>
-        <tr><td>other</td><td>0.10</td></tr>
-    </table>
-    <p>Audio query vector blends these text values before projecting to logits — implementing “listen to the prompt words while choosing the next sonic atom.”</p>
+ Unconditioned Logits (z_∅) ──────► Prompted Logits (z_c) ──────► Final Guided Logits (z_guided)
+                                      [ Vector Difference: (z_c - z_∅) ]
+                                      &lt;───────────────────────────────&gt;
+                                            Scaled by Factor w &gt; 1.0</pre>
 
-    <hr>
+<h3>Practical Effects of the Guidance Scale (\(w\))</h3>
+<ul>
+<li><strong>\(w = 1.0\):</strong> Standard conditional sampling (no guidance boost).</li>
+<li><strong>\(w = 3.0\text{ to }5.0\) (Sweet Spot):</strong> Noticeable boost in prompt adherence, cleaner instrumental separation, and tighter rhythmic fidelity.</li>
+<li><strong>\(w &gt; 8.0\) (Over-guidance):</strong> The logit distribution becomes overly peaked, leading to metallic high-frequency artifacts, repetitive musical loops, and dynamic range clipping.</li>
+</ul>
 
-    <h2>10. Failure modes &amp; debugging prompts</h2>
-    <table>
-        <thead><tr><th>Symptom</th><th>Likely cause</th><th>Try</th></tr></thead>
-        <tbody>
-            <tr><td>Generic mush</td><td>Vague prompt / low guidance</td><td>Add instruments, genre, mood; increase guidance if exposed</td></tr>
-            <tr><td>Wrong genre</td><td>Prior bias / OOD words</td><td>Swap synonyms; shorten prompt</td></tr>
-            <tr><td>Ignores continuation</td><td>Prefix too short / wrong format</td><td>Longer audio prompt; check codec encode</td></tr>
-            <tr><td>Metallic noise</td><td>CFG too high</td><td>Lower guidance scale</td></tr>
-            <tr><td>Looping bar</td><td>Low temperature / mode collapse</td><td>Raise τ or top-p</td></tr>
-        </tbody>
-    </table>
+<hr>
 
-    <div class="quiz">
-        <strong>Quiz 6:</strong> Temperature 2.0 at fixed c — expect more or less diversity vs τ=0.8?
-        <details><summary>Show answer</summary><p>More diversity (flatter distribution) unless logits are extremely peaked.</p></details>
-    </div>
+<h2>5. Sampling Strategies: Temperature and Nucleus (Top-p)</h2>
+<p>Once guided logits \(z_{\text{guided}}\) are computed, the final discrete token is sampled using two key hyperparameters:</p>
 
-    <div class="info-box">
-        <strong>Multi-condition example:</strong> Text <code>"jazz"</code> + audio prefix of brush drums → c combines both embeddings; model must satisfy continuation <em>and</em> text — conflicts produce hybrid or failure modes worth logging in your lab table.
-    </div>
+<h3>1. Temperature (\(\tau\))</h3>
+<p>Temperature rescales logits to adjust distribution entropy:</p>
+<div class="eq-panel">\[ P(i) = \frac{\exp(z_i / \tau)}{\sum_j \exp(z_j / \tau)} \]</div>
+<ul>
+<li><strong>\(\tau &lt; 1.0\) (e.g., \(0.7\)):</strong> Sharpens the distribution, suppressing low-probability noise tokens and favoring common, stable musical patterns.</li>
+<li><strong>\(\tau &gt; 1.0\) (e.g., \(1.3\)):</strong> Flattens the distribution, introducing sonic variation and unexpected instrument pairings at the risk of structural dissonance.</li>
+</ul>
 
+<h3>2. Nucleus Sampling (Top-\(p\))</h3>
+<p>Top-\(p\) sampling truncates the long tail of low-probability codebook vectors:</p>
+<ol>
+<li>Sort token probabilities in descending order.</li>
+<li>Retain the smallest subset of top tokens whose cumulative sum satisfies:
+<div class="eq-panel">\[ \sum_{i \in V_{\text{top}}} P(i) \ge p \]</div>
+</li>
+<li>Renormalize the remaining probabilities and sample exclusively from this subset.</li>
+</ol>
+<p>Setting \(p = 0.90\) eliminates improbable acoustic tokens (preventing sudden glitchy transients) while preserving expressive variance.</p>
 
-    <hr>
-    <h2>11. Conditioning + codec joint shape trail</h2>
-    <div class="shape-trail">Batch dim omitted for clarity.
+<hr>
 
-Text side:
-  prompt → (L,) ids → (L, 1024) embeddings → cached for all audio steps
+<h2>6. Comparison of Conditioning Paradigms Across Audio Generation</h2>
+<table>
+<tr><th>Paradigm</th><th>Input Condition \(\mathbf{c}\)</th><th>Injection Method</th><th>Strengths</th><th>Limitations</th></tr>
+<tr><td><strong>Text Conditioning</strong></td><td>Natural language string</td><td>Cross-attention over frozen text embeddings (T5, CLAP)</td><td>Highly expressive; accessible to non-musicians</td><td>Coarse control; cannot specify exact note pitches or rhythms</td></tr>
+<tr><td><strong>Audio Prefix (Continuation)</strong></td><td>Pre-existing waveform snippet</td><td>Direct concatenation of encoded codec tokens</td><td>Seamless transitions; preserves exact audio fidelity and timbre</td><td>Limited to extending linear chronology</td></tr>
+<tr><td><strong>Symbolic Conditioning (Melody)</strong></td><td>MIDI pitch matrix or chromagram</td><td>Feature map addition or cross-attention</td><td>Precise control over pitch contours and harmony</td><td>Requires musical knowledge to write explicit input melodies</td></tr>
+<tr><td><strong>Multi-Modal Steering</strong></td><td>Text prompt + Audio reference</td><td>Joint cross-attention + prefix caching</td><td>Directs global style via text while anchoring instrumentation via audio</td><td>High risk of prompt conflict (e.g., <code>"smooth jazz"</code> prompt over death metal drums)</td></tr>
+</table>
 
-Audio side (continuation):
-  prefix wav 3s → codec encoder → (150, 4) prefix IDs (fixed)
-  generate 7s more → predict (350, 4) new IDs → total (500, 4) for 10s output
+<div class="interactive-box">
+<strong>Lab: Prompt Steering Board</strong>
+<p style="margin:8px 0 12px;font-size:0.95em;color:#475569;">Toggle genre / instrument / mood tags and watch a mock next-token distribution reshape — the same Softmax idea as §1, with conditioning shifting probability mass.</p>
+<p style="margin-top:0;"><strong>Genre</strong></p>
+<div id="tags-genre"></div>
+<p><strong>Instrument</strong></p>
+<div id="tags-inst"></div>
+<p><strong>Mood</strong></p>
+<div id="tags-mood"></div>
+<p style="font-size:0.9em;color:#64748b;">Active prompt: <code id="active-prompt">()</code></p>
+<button type="button" id="clear-tags">Clear all tags (unconditioned)</button>
+<h3 style="margin-bottom:8px;">Mock next-token probabilities</h3>
+<div id="prob-chart"></div>
+<p id="steer-note" style="font-size:0.88em;color:#64748b;margin-bottom:0;"></p>
+</div>
 
-Joint step t:
-  input = concat(embed(audio_tokens[:t]), cross_attn(text_emb))
-  output logits (2048,) → next interleaved ID</div>
+<div class="tool-box">
+<p style="margin-top:0;"><strong>Try it live:</strong> <a href="https://huggingface.co/spaces/facebook/MusicGen" target="_blank" rel="noopener">MusicGen on Hugging Face</a></p>
+<p>Compare a specific prompt (e.g. <code>calm lo-fi hip hop, dusty drums, warm electric piano</code>) against a vague one (<code>music</code>) and listen for how conditioning strength shows up in the output.</p>
+</div>
 
-    <hr>
-    <h2>12. From tags to natural language (prompt engineering)</h2>
-    <p>The steering board uses discrete tags; MusicGen expects free text. Translation table:</p>
-    <table>
-        <tr><th>Board tag</th><th>Prompt phrase</th></tr>
-        <tr><td>Lo-Fi + Piano + Chill</td><td><code>calm lo-fi beat, warm electric piano, relaxed mood</code></td></tr>
-        <tr><td>Metal + Guitar + Aggressive</td><td><code>heavy metal, distorted guitars, aggressive drums</code></td></tr>
-        <tr><td>(cleared)</td><td><code>music</code> or empty — flat prior</td></tr>
-    </table>
-    <p>Free text adds synonyms and ordering effects BPE tokenization absorbs — another reason probabilities shift in ways the widget only approximates.</p>
+<hr>
 
-    <div class="quiz">
-        <strong>Quiz 7:</strong> 10 s generation, 50 Hz, K=4, no prefix — how many AR steps after conditioning is applied each step?
-        <details><summary>Show answer</summary><p><code>10 × 50 × 4 = 2000</code> steps; conditioning modifies logits at every step, not once upfront.</p></details>
-    </div>
+<h2>7. Troubleshooting Generative Failure Modes</h2>
+<table>
+<tr><th>Failure Symptom</th><th>Underlying Cause</th><th>Corrective Action</th></tr>
+<tr><td><strong>Generic, bland audio output</strong></td><td>Low CFG scale (\(w \approx 1.0\)) or overly broad prompt</td><td>Increase CFG scale to \(w = 3.5\text{–}5.0\); add specific instrumentation, tempo, and genre descriptors.</td></tr>
+<tr><td><strong>Harsh metallic noise / distortion</strong></td><td>Over-guidance from excessively high CFG (\(w &gt; 8.0\))</td><td>Reduce guidance scale to \(w = 3.0\text{–}4.0\).</td></tr>
+<tr><td><strong>Model repeats a single bar indefinitely</strong></td><td>Temperature too low (\(\tau &lt; 0.5\)) causing mode collapse</td><td>Increase temperature to \(\tau = 0.8\text{–}1.0\), or increase Top-\(p\) to \(0.95\).</td></tr>
+<tr><td><strong>Audio ignores continuation prefix</strong></td><td>Prefix too short (e.g., \(\lt 1.0\text{ s}\)) or mismatch in sample rate</td><td>Provide at least \(3.0\text{ to }5.0\text{ seconds}\) of clean prefix audio.</td></tr>
+<tr><td><strong>Total musical chaos / out-of-tune notes</strong></td><td>Sampling temperature too high (\(\tau &gt; 1.4\)) or Top-\(p\) unbound</td><td>Lower temperature to \(\tau = 0.85\) and set Top-\(p = 0.90\).</td></tr>
+</table>
 
+<hr>
 
-    <hr>
-    <h2>13. Bach Doodle → MusicGen — same diagram, different alphabet</h2>
-    <table>
-        <thead><tr><th></th><th>Bach Doodle (Coconet)</th><th>MusicGen</th></tr></thead>
-        <tbody>
-            <tr><td>Domain</td><td>Symbolic MIDI notes</td><td>Codec audio tokens</td></tr>
-            <tr><td>Condition c</td><td>Your melody bars</td><td>Text + optional audio prefix</td></tr>
-            <tr><td>Generation</td><td>Harmony voices</td><td>Next acoustic frames</td></tr>
-            <tr><td>Output</td><td>Piano roll / MIDI</td><td>Waveform @ 32 kHz</td></tr>
-            <tr><td>Control precision</td><td>Note-level</td><td>Prompt-level (coarser)</td></tr>
-            <tr><td>Timbral realism</td><td>Depends on sampler</td><td>Learned from recordings</td></tr>
-        </tbody>
-    </table>
-    <p>Use this table in your MusicGen lab writeup when explaining why text steering feels “vaguer” than placing individual notes.</p>
+<h2>Knowledge Verification</h2>
 
-    <div class="callout">
-        <strong>Exam-style recap:</strong> Unconditioned generation uses c = ∅. Text conditioning injects embeddings into every step’s logits. Continuation fixes the first F×K prefix tokens. CFG extrapolates from ∅ toward c when w &gt; 1.
-    </div>
+<div class="quiz">
+<strong>1. Dual-Forward Pass Arithmetic with CFG</strong>
+<p><strong>Question:</strong> A generative audio model is predicting token \(a_t\). For a specific codebook token (<code>acoustic_snare</code>), the unconditioned forward pass produces a logit \(z_{\emptyset} = 1.5\). The text-conditioned forward pass produces a logit \(z_{\mathbf{c}} = 3.5\).</p>
+<ol>
+<li>If the model operates with a guidance scale \(w = 3.0\), what is the final guided logit \(z_{\text{guided}}\)</li>
+<li>If another token (<code>synth_zap</code>) has \(z_{\emptyset} = 2.0\) and \(z_{\mathbf{c}} = 1.0\), what is its final guided logit under the same guidance scale?</li>
+</ol>
+<details>
+<summary>Show answer</summary>
+<ol>
+<li>For <code>acoustic_snare</code>:
+<div class="eq-panel">\[ z_{\text{guided}} = z_{\emptyset} + w \cdot (z_{\mathbf{c}} - z_{\emptyset}) = 1.5 + 3.0 \cdot (3.5 - 1.5) = 1.5 + 3.0 \cdot (2.0) = 1.5 + 6.0 = \mathbf{7.5} \]</div>
+</li>
+<li>For <code>synth_zap</code>:
+<div class="eq-panel">\[ z_{\text{guided}} = 2.0 + 3.0 \cdot (1.0 - 2.0) = 2.0 + 3.0 \cdot (-1.0) = 2.0 - 3.0 = \mathbf{-1.0} \]</div>
+</li>
+</ol>
+<p>Under CFG (\(w = 3.0\)), the relative logit gap between the desired snare and the unwanted synth expands from \(3.5 - 1.0 = 2.5\) to \(7.5 - (-1.0) = 8.5\), heavily suppressing the unwanted sound.</p>
+</details>
+</div>
 
+<div class="quiz">
+<strong>2. Multi-Codebook Continuation Calculations</strong>
+<p><strong>Question:</strong> A user inputs a \(5.0\text{-second}\) audio track into a MusicGen system (\(50\text{ Hz}\) frame rate, \(K = 4\) codebooks) and requests an additional \(10.0\text{ seconds}\) of music conditioned on the prompt <code>"ambient synth pads"</code>.</p>
+<ol>
+<li>How many total discrete tokens will make up the input prefix?</li>
+<li>How many forward autoregressive sampling steps must the Transformer execute to complete the generation?</li>
+<li>How many total tokens (prefix + generated) are passed to the codec decoder to synthesize the final 15-second waveform?</li>
+</ol>
+<details>
+<summary>Show answer</summary>
+<ol>
+<li>Prefix frames \(= 5.0\text{ s} \times 50\text{ frames/s} = 250\text{ frames}\). Prefix tokens \(= 250\text{ frames} \times 4\text{ codebooks} = \mathbf{1,000\text{ tokens}}\).</li>
+<li>New frames to generate \(= 10.0\text{ s} \times 50\text{ frames/s} = 500\text{ frames}\). Total new tokens generated \(= 500 \times 4 = \mathbf{2,000\text{ tokens}}\) (2,000 autoregressive steps across the delayed multi-codebook schedule).</li>
+<li>Total sequence length \(= 1,000\text{ prefix tokens} + 2,000\text{ generated tokens} = \mathbf{3,000\text{ tokens}}\) (spanning 750 frames).</li>
+</ol>
+</details>
+</div>
 
-    <hr>
-    <h2>14. Guided reflection — connect board to MusicGen</h2>
-    <ol class="guided">
-        <li>Open the steering board; select Lo-Fi + Guitar + Chill. Record the top token and its probability.</li>
-        <li>Clear tags. Which token rises unexpectedly in the flat prior?</li>
-        <li>Write a MusicGen prompt that should reproduce the tagged scenario in §14 step 1.</li>
-        <li>After generating, note whether the <em>top mock token name</em> matches what you hear — it will not match literally (mock labels ≠ real codec IDs) but the <em>category</em> (pluck vs pad) should align if conditioning works.</li>
-        <li>Explain in two sentences why the widget uses softmax scores while MusicGen uses a billion-parameter transformer — same probability story, different function approximator.</li>
-    </ol>
+<hr>
 
-    <div class="warn-box">
-        <strong>Instructor note:</strong> If probabilities do not sum to 100% in hand calculations due to rounding, renormalize — only the relative ordering matters for intuition.
-    </div>
+<h2>Key Takeaways &amp; What's Next</h2>
+<ul>
+<li><strong>Conditioning shifts logits:</strong> External controls (prompts, audio prefixes) bias the pre-Softmax logits toward desired codebook indices.</li>
+<li><strong>Cross-attention enables continuous prompt querying:</strong> Audio queries attend to frozen text key-value embeddings throughout the generation process.</li>
+<li><strong>CFG scales prompt adherence:</strong> By extrapolating away from the unconditioned prior (\(z_{\emptyset}\)) toward the conditioned distribution (\(z_{\mathbf{c}}\)), Classifier-Free Guidance enhances fidelity and reduces prompt drift.</li>
+<li><strong>Audio continuation uses prefix tokens:</strong> Pre-encoded codec tokens serve as an immutable starting history for ongoing autoregression.</li>
+</ul>
+<p>Now that we understand how audio is tokenized (Lesson 3) and steered (Lesson 4), we can assemble the complete puzzle.</p>
+<p>In <strong>Lesson 5</strong>, we analyze <strong>Production-Grade Architectures (AudioCraft, Diffusion Transformers, Suno, and Udio)</strong>, comparing autoregressive token models against continuous latent diffusion, and examining real-world deployment challenges and ethical considerations.</p>
 
+<div class="bridge">
+<strong>Further reading</strong>
+<ul style="margin:8px 0 0;">
+<li>MusicGen / AudioCraft papers and <a href="https://ai.meta.com/blog/audiocraft-musicgen-audiogen-encodec-generative-ai-audio/" target="_blank" rel="noopener">Meta AudioCraft blog</a></li>
+<li>Classifier-Free Guidance (Ho &amp; Salimans) — same linear mix used in image diffusion, applied here to token logits</li>
+</ul>
+</div>
 
-    <hr>
-    <h2>15. Numerical lab — prefix + text together</h2>
-    <div class="worked">
-        <strong>Scenario:</strong> User uploads 3 s of drum loop and types <code>"add jazz chords, warm piano"</code>. System encodes 3 s → prefix tokens; text → c.
-        <ul>
-            <li>Prefix frames: <code>3 × 50 = 150</code>; prefix IDs: <code>600</code>.</li>
-            <li>User requests 7 s more → generate <code>7 × 50 × 4 = 1400</code> new steps.</li>
-            <li>Total output length 10 s → <code>500</code> frames, <code>2000</code> IDs.</li>
-            <li>At step 601, model sees fixed drum prefix + text c → must predict piano/jazz-compatible tokens, not restart drums from scratch unless prompt asks.</li>
-        </ul>
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 8:</strong> Same scenario but 0 s prefix (text only) for 10 s — how many tokens conditioned solely on text after step 1?
-        <details><summary>Show answer</summary><p>All <code>2000</code> tokens — text c applies at every step; no audio prefix.</p></details>
-    </div>
-
-    <div class="info-box">
-        <strong>Bridge to Lesson 5:</strong> You can now specify c and count tokens. Lesson 5 wires c and tokens into full product pipelines (MusicGen open stack vs Suno/Udio) and compares diffusion loops step-for-step.
-    </div>
-
-
-    <hr>
-    <h2>16. Softmax check — verify the worked example</h2>
-    <p>For the unconditioned table in §1, verify normalization:</p>
-    <div class="calc-box">
-        exp sums: 2.72 + 3.32 + 2.23 + 3.00 + 2.72 = 13.99 (approx)<br>
-        P(guitar_pluck) = 3.32 / 13.99 ≈ 0.237 (23.7%) — close to listed 24.4% with rounding.<br>
-        After conditioning, total exp ≈ 30.67; 16.44/30.67 ≈ 0.536 (53.6%) for distorted_riff ✓
-    </div>
-    <p>Always renormalize if you change logits — conditioning is additive in log-space before softmax.</p>
-
-    <div class="quiz">
-        <strong>Quiz 9 (review):</strong> Name the three ingredients in the MusicGen conditioning objective <code>P(a<sub>t</sub> | a<sub>&lt;t</sub>, c)</code>.
-        <details><summary>Show answer</summary><p>Previous audio tokens <code>a<sub>&lt;t</sub></code>, condition <code>c</code> (text and/or prefix), and the model parameters that map them to logits.</p></details>
-    </div>
-
-    <hr>
-    <h2>Further reading</h2>
-    <ul>
-        <li>MusicGen / AudioCraft docs — guidance_scale, melody conditioning.</li>
-        <li>Copet et al., Simple and Controllable Music Generation (MusicGen paper).</li>
-        <li>Modules 3–4 (<em>Machine Learning for Music</em>, instructor permission).</li>
-        <li>Google Bach Doodle / Coconet — symbolic conditioning precedent.</li>
-    </ul>
-
-    <div class="callout">
-        <strong>You should now be able to:</strong> write the conditioning objective; compute prefix token counts; explain cross-attention’s role; run A/B MusicGen prompts with a filled results table; and describe when CFG helps vs hurts.
-    </div>
-
+<table border="0" width="100%" style="margin-top:30px;">
+<tr>
+<td align="left"><button onclick="window.location.href='lesson3.html'" style="padding: 10px 20px; cursor: pointer;">Previous: Lesson 3</button></td>
+<td align="right"><button onclick="window.location.href='lesson5.html'" style="padding: 10px 20px; cursor: pointer; font-weight: bold;">Next: Lesson 5 — Architectures &amp; Evaluation</button></td>
+</tr>
+</table>
 
 </div>
 
@@ -594,6 +548,36 @@ Joint step t:
     });
     renderTags();
     renderProbs();
+})();
+
+(function () {
+    var names = ['soft_pad','guitar_pluck','distorted_riff','brush_kit','glitch_noise'];
+    var start = [1.0, 1.2, 0.8, 1.1, 1.0];
+    var box = document.getElementById('sm-inputs');
+    if (!box) return;
+    names.forEach(function (n, i) {
+        var row = document.createElement('div');
+        row.style.margin = '6px 0';
+        row.innerHTML = '<label style="display:inline-block;width:140px;font-family:monospace;font-size:0.85em;">' + n +
+            '</label><input type="number" step="0.1" value="' + start[i] + '" data-i="' + i + '" style="width:80px;">';
+        box.appendChild(row);
+    });
+    function render() {
+        var z = Array.prototype.map.call(box.querySelectorAll('input'), function (el) { return parseFloat(el.value) || 0; });
+        var exps = z.map(function (v) { return Math.exp(v); });
+        var s = exps.reduce(function (a, b) { return a + b; }, 0);
+        var html = '';
+        names.forEach(function (n, i) {
+            var p = exps[i] / s;
+            html += '<div class="prob-row"><span class="prob-label">' + n + '</span>' +
+                '<div class="prob-bar-bg"><div class="prob-bar" style="width:' + (p * 100) + '%"></div></div>' +
+                '<span class="prob-pct">' + (p * 100).toFixed(1) + '%</span></div>';
+        });
+        document.getElementById('sm-bars').innerHTML = html;
+        document.getElementById('sm-sum').textContent = 'Σ P = 1.000 (check). Largest logit is token ' + names[z.indexOf(Math.max.apply(null, z))] + '.';
+    }
+    box.addEventListener('input', render);
+    render();
 })();
 </script>
 

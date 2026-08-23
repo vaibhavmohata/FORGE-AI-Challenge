@@ -6,6 +6,17 @@
 <body>
 
 <div class="genai-lesson-container">
+<script>
+window.MathJax = {
+    tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']],
+        processEscapes: true
+    }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
     <style>
 
         .genai-lesson-container {
@@ -127,388 +138,369 @@
         .genai-lesson-container ol.guided li { margin-bottom: 8px; }
 
     </style>
+<h1>Lesson 3: The Sound Dictionary (Audio Tokenization &amp; Neural Codecs)</h1>
 
+<p>In standard Natural Language Processing, text models do not process raw ASCII bytes or pixel renderings of characters. Algorithms like Byte-Pair Encoding (BPE) compress text into a vocabulary of a few tens of thousands of subword token IDs, allowing Transformers to optimize next-token prediction:</p>
+<div class="eq-panel">\[ P(w_t \mid w_{&lt;t}) \]</div>
+<p>In Lesson 1, we saw that a raw waveform consists of hundreds of thousands of continuous floating-point numbers per second. In Lesson 2, we saw that symbolic MIDI collapses this data into sparse discrete instructions, but discards all physical timbre, vocal identity, and room acoustics.</p>
+<p>This lesson explores the bridge between continuous acoustics and discrete sequence modeling: <strong>Neural Audio Codecs</strong> (such as EnCodec, SoundStream, and DAC).</p>
+<p>Neural codecs learn a discrete vocabulary directly from raw waveforms, compressing continuous audio by orders of magnitude while preserving high-fidelity timbre. This allows autoregressive Transformers and diffusion backbones to generate audio using standard sequence-generation machinery.</p>
 
-    <h1>The Sound Dictionary (Audio Tokenization)</h1>
-    <div class="roadmap"><strong>Unit roadmap — Intro to Audio Generation</strong>
-        <ol>
-            <li>1. Sound as waveforms &amp; spectrograms</li>
-            <li>2. Recipes (MIDI) vs records (raw audio)</li>
-            <li class="here">3. Audio tokens &amp; neural codecs ← <em>you are here</em></li>
-            <li>4. Conditioning — steering generation</li>
-            <li>5. Real systems (AudioCraft, Suno…) &amp; ethics</li>
-        </ol>
-    </div>
+<hr>
 
-    <p><strong>Goal:</strong> Build hands-on literacy in <strong>neural audio codecs</strong> — the same family of models behind MusicGen and EnCodec. You will compute compression ratios, trace tensor shapes from waveform to discrete IDs, work a vector-quantization example by hand, and connect everything back to text tokenization from your foundations unit.</p>
+<div class="roadmap"><strong>Course Roadmap — Intro to Audio Generation</strong>
+<ol>
+<li>1. <strong>Sound as Waveforms &amp; Spectrograms</strong></li>
+<li>2. <strong>Recipes (MIDI) vs. Records (Raw Audio)</strong></li>
+<li class="here">3. <strong>Audio Tokens &amp; Neural Codecs (EnCodec, SoundStream, DAC)</strong> <em>(You are here)</em></li>
+<li>4. <strong>Conditioning Mechanisms: Steering Audio Models</strong></li>
+<li>5. <strong>Modern Architectures (AudioCraft, Diffusion Models) &amp; Evaluation</strong></li>
+</ol>
+</div>
 
-    <div class="bridge">
-        <strong>Bridge from Lesson 2 (MIDI):</strong> MIDI stores <em>events</em> — “note 60, velocity 80, 0.25 s.” That is a human-designed token alphabet (~128 pitches × timing). It excels at editing structure but cannot encode breath noise, guitar distortion, or room reverb.<br><br>
-        <strong>Bridge from foundations (text tokens):</strong> GPT-style models consume integer IDs from a BPE vocabulary. Training optimizes <code>P(w<sub>t</sub> | w<sub>&lt;t</sub>)</code>. Audio needs an analogous map from waveform → IDs so the same transformer machinery applies to <code>P(a<sub>t</sub> | a<sub>&lt;t</sub>)</code>.<br><br>
-        <strong>This lesson’s answer:</strong> Learn a <strong>neural codec</strong> whose codebooks are the “audio vocabulary.”
-    </div>
+<hr>
 
-    <hr>
+<h2>1. Why Sample-Level Autoregression Fails at Scale</h2>
+<p>It is tempting to ask: <em>Why not quantize raw PCM samples into 256 amplitude buckets (like 8-bit \(\mu\)-law in early WaveNet architectures) and train a Transformer directly on raw samples?</em></p>
+<p>The core barrier is sequence length and attention complexity:</p>
 
-    <h2>0. Lesson roadmap</h2>
-    <ol class="guided">
-        <li>Quantify why sample-level autoregression fails.</li>
-        <li>Parallel table: BPE text vs audio codebook.</li>
-        <li>Autoencoder + reconstruction loss.</li>
-        <li>VQ worked example + RVQ stacking.</li>
-        <li>MusicGen/EnCodec numbers and compression ratio.</li>
-        <li>Shape trail + interleaved prediction.</li>
-        <li>Interactive crushing + bit-rate math.</li>
-        <li>MusicGen lab tying ears to discrete tokens.</li>
-    </ol>
+<h3>Worked Scaling Comparison</h3>
+<p>Consider generating a <strong>10-second mono audio clip</strong>:</p>
+<ul>
+<li><strong>Low-bandwidth speech (\(16\text{ kHz}\)):</strong>
+<div class="eq-panel">\[ 10\text{ s} \times 16,000\text{ samples/s} = \mathbf{160,000\text{ samples}} \]</div>
+</li>
+<li><strong>Broadcast/Music CD quality (\(44.1\text{ kHz}\)):</strong>
+<div class="eq-panel">\[ 10\text{ s} \times 44,100\text{ samples/s} = \mathbf{441,000\text{ samples}} \]</div>
+</li>
+<li><strong>Computational Footprint:</strong> Standard causal self-attention scales quadratically, \(\mathcal{O}(T^2)\), with sequence length \(T\). Running \(441,000\) sequential forward passes to synthesize 10 seconds of music is computationally prohibitive for real-time generation.</li>
+</ul>
 
-    <div class="primer-box">
-        <h3 style="margin-top:0;">Mini-glossary (Lesson 3)</h3>
-        <ul style="margin-bottom:0;">
-            <li><strong>Codec</strong> — encoder/decoder pair that compresses audio to a compact representation.</li>
-            <li><strong>Codebook</strong> — matrix of <code>V</code> prototype vectors; each row is a “sound atom.”</li>
-            <li><strong>Frame rate</strong> — how many latent summaries per second (MusicGen: ~50 Hz).</li>
-            <li><strong>RVQ</strong> — residual vector quantization; stack codebooks for coarse→fine.</li>
-            <li><strong>Interleaving</strong> — order for predicting multiple codebooks across time.</li>
-        </ul>
-    </div>
+<h3>The Neural Codec Solution</h3>
+<p>A neural codec downsamples the continuous audio stream temporally to a low frame rate (typically <strong>\(50\text{ Hz}\)</strong>, or one latent vector every \(20\text{ ms}\)) and quantizes each frame into a small set of discrete codebook indices (e.g., \(K = 4\) codebooks):</p>
+<div class="eq-panel">\[ \text{Frames in 10 s} = 10\text{ s} \times 50\text{ frames/s} = 500\text{ frames} \]</div>
+<div class="eq-panel">\[ \text{Total Discrete Decisions} = 500\text{ frames} \times 4\text{ codebooks} = \mathbf{2,000\text{ tokens}} \]</div>
+<p>Compressing \(160,000\text{ samples}\) down to \(2,000\text{ tokens}\) yields an <strong>\(80\times\) sequence reduction</strong> relative to \(16\text{ kHz}\) audio (and over <strong>\(220\times\)</strong> relative to \(44.1\text{ kHz}\)). A 2,000-token sequence fits comfortably inside modern Transformer context windows.</p>
 
-    <hr>
+<hr>
 
-    <h2>1. The scale problem: why not predict samples?</h2>
-    <p>Autoregressive models predict one discrete token per step. Treating each PCM sample as a token seems natural — but the sequence length explodes.</p>
+<h2>2. Text BPE vs. Audio Neural Codecs</h2>
+<p>The parallels and structural differences between text tokenization and neural audio tokenization clarify how both modalities interface with sequence models:</p>
+<table>
+<tr><th>Architectural Attribute</th><th>Text Tokenization (BPE / SentencePiece)</th><th>Audio Tokenization (EnCodec / DAC / SoundStream)</th></tr>
+<tr><td><strong>Vocabulary Size (\(V\))</strong></td><td>\(32,000\text{ to }100,000\) subword merges</td><td>\(1,024\text{ to }2,048\) entries <em>per codebook stage</em></td></tr>
+<tr><td><strong>Quantization Method</strong></td><td>Deterministic, rule-based text merging</td><td>Learned Vector Quantization (VQ / RVQ) over continuous embeddings</td></tr>
+<tr><td><strong>Temporal Alignment</strong></td><td>Variable: 1 token \(\approx 1\) to 6 characters</td><td>Fixed-stride: 1 frame \(\approx 20\text{ ms}\) of continuous audio (\(50\text{ Hz}\))</td></tr>
+<tr><td><strong>Encoder Architecture</strong></td><td>Lookup tables and string search</td><td>Strided 1D/2D Convolutional Networks with residual blocks</td></tr>
+<tr><td><strong>Decoder Architecture</strong></td><td>Deterministic string concatenation</td><td>Transposed convolutions generating high-sample-rate PCM</td></tr>
+<tr><td><strong>Failure Modes</strong></td><td>Out-of-vocabulary artifacts, bad merges</td><td>Robotic timbre, phase distortion, muffled transients</td></tr>
+</table>
+<p>While text tokenization merges discrete characters using frequency statistics, audio tokenization must map continuous acoustic manifolds into discrete indices using deep neural autoencoders.</p>
 
-    <div class="worked">
-        <strong>Worked example A — 10 s mono @ 16 kHz</strong>
-        <ul>
-            <li>Sample rate <code>f<sub>s</sub> = 16,000</code> → 16,000 numbers per second.</li>
-            <li>Duration 10 s → <code>T = 10 × 16,000 = <strong>160,000</strong></code> samples.</li>
-            <li>One AR step per sample → 160k forward passes; causal attention cost grows ~<code>O(T²)</code> in naive form.</li>
-            <li>Storage (16-bit PCM): <code>160,000 × 16 bits = 2.56 Mbit</code> per channel.</li>
-        </ul>
-    </div>
+<hr>
 
-    <div class="worked">
-        <strong>Worked example B — same clip @ 44.1 kHz (CD quality)</strong>
-        <ul>
-            <li><code>T = 10 × 44,100 = 441,000</code> steps — impractical for GPT-scale attention at full length.</li>
-            <li>This is why Lesson 1 spectrograms help <em>human</em> analysis but do not alone fix AR length — pixel-level spectrogram AR is also huge unless downsampled.</li>
-        </ul>
-    </div>
+<h2>3. The Neural Codec Architecture: Autoencoders with a Bottleneck</h2>
+<p>A neural codec consists of three core components: an <strong>Encoder</strong>, a <strong>Discrete Quantization Bottleneck</strong>, and a <strong>Decoder</strong>.</p>
+<pre class="shape-trail">Raw Audio x (T samples)
+   │
+   ▼
+[ Strided Convolutional Encoder E(x) ]
+   │
+   ▼
+Continuous Latent Grid z_f (F frames, D dimensions)
+   │
+   ▼
+[ Vector Quantizer Q(z_f) ] ──► Discrete Codebook IDs (F × K integers)
+   │
+   ▼
+Quantized Embeddingsẑ_f (F frames, D dimensions)
+   │
+   ▼
+[ Transposed Convolutional Decoder D(ẑ_f) ]
+   │
+   ▼
+Reconstructed Waveform x̂ (T samples)</pre>
 
-    <div class="calc-box">
-        <strong>Target: codec frames @ 50 Hz, K = 4 codebooks</strong>
-        <ul>
-            <li>Frames in 10 s: <code>F = 10 × 50 = 500</code>.</li>
-            <li>Discrete decisions ≈ <code>500 × 4 = 2,000</code> (vs 160,000–441,000 samples).</li>
-            <li>Sequence shortening factor vs 16 kHz samples: <code>160,000 / 2,000 = 80×</code>.</li>
-        </ul>
-    </div>
+<figure>
+<img src="assets/m4_rvq.png" alt="Encoder, residual quantizer, decoder, and discriminator">
+<figcaption><strong>Figure.</strong> EnCodec-style codec: waveform → convolutional encoder → stacked vector quantizers → decoder. Extra losses compare waveforms, spectrograms, and a multi-scale discriminator. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
 
-    <div class="quiz">
-        <strong>Quiz 1 (numerical):</strong> 30 s stereo @ 48 kHz — samples per channel?
-        <details><summary>Show answer</summary><p><code>30 × 48,000 = 1,440,000</code> per channel.</p></details>
-    </div>
+<h3>1. The Encoder (\(E\))</h3>
+<p>A deep convolutional neural network processes the 1D waveform \(x \in \mathbb{R}^T\). Using progressive strided convolutions (e.g., strides of \(2, 4, 5, 8\)), it reduces the temporal sample rate while increasing channel depth.</p>
+<p>For an input at \(32,000\text{ Hz}\) with a total downsampling stride of \(640\):</p>
+<div class="eq-panel">\[ \text{Latent Frame Rate} = \frac{32000}{640} = 50\text{ Hz} \]</div>
+<p>Every frame \(z_f \in \mathbb{R}^D\) (\(D \approx 128\)) represents a continuous summary of a \(20\text{ ms}\) window of physical audio.</p>
 
-    <hr>
+<h3>2. The Quantization Layer (\(Q\))</h3>
+<p>Continuous latent vectors \(z_f\) cannot be directly modeled with discrete cross-entropy loss. The quantizer maps each continuous vector \(z_f\) to the closest prototype vector in a learned dictionary matrix (the <strong>codebook</strong>) \(E_{\text{book}} \in \mathbb{R}^{V \times D}\):</p>
+<div class="eq-panel">\[ \hat{z}_f = e_{\text{ID}}, \quad \text{where } \text{ID} = \arg\min_{k \in \{1, \dots, V\}} \Vert z_f - e_k\Vert_2^2 \]</div>
+<p>The integer \(\text{ID} \in [0, V-1]\) is the <strong>audio token</strong> stored or predicted by the downstream language model.</p>
 
-    <h2>2. BPE text vocabulary vs audio codebook</h2>
-    <table>
-        <thead><tr><th>Stage</th><th>Text (BPE)</th><th>Audio (EnCodec-style)</th></tr></thead>
-        <tbody>
-            <tr><td><strong>Alphabet size</strong></td><td>V ≈ 32k–50k merges</td><td>V ≈ 1024–2048 <em>per codebook</em>; K ≈ 4 books</td></tr>
-            <tr><td><strong>Token meaning</strong></td><td>Subword string piece</td><td>Prototype latent vector (summed across RVQ stages)</td></tr>
-            <tr><td><strong>Encoder</strong></td><td>Deterministic merge table on UTF-8</td><td>Learned CNN/Transformer on waveform windows</td></tr>
-            <tr><td><strong>Time axis</strong></td><td>One token ≈ part of a word</td><td>One frame ≈ 20 ms of audio (at 50 Hz)</td></tr>
-            <tr><td><strong>Decoder</strong></td><td>Concatenate subwords → string</td><td>Neural upsampling → waveform</td></tr>
-            <tr><td><strong>Failure mode</strong></td><td>Unknown unicode / rare typos</td><td>Robotic timbre if V too small (see crushing demo)</td></tr>
-        </tbody>
-    </table>
+<h3>3. The Decoder (\(D\))</h3>
+<p>The decoder reconstructs the audio signal from the quantized vectors \(\hat{z}_f\). Using transposed convolutions, it mirrors the encoder strides, upsampling the discrete latent sequence back into a continuous \(32\text{ kHz}\) PCM waveform \(\hat{x} \in \mathbb{R}^T\).</p>
 
-    <div class="worked">
-        <strong>Analogy — BPE on a tiny string (from foundations)</strong>
-        <p>Corpus merges teach that <code>"ing"</code> is a reusable piece. Sentence <code>"coding"</code> might tokenize to <code>[code, ing]</code> → IDs <code>[4012, 988]</code>.</p>
-        <p>Audio analogue: a frame’s latent might quantize to RVQ IDs <code>[402, 88, 1201, 55]</code> — four entries whose <em>sum</em> reconstructs the frame latent, like four subword vectors summing to meaning.</p>
-    </div>
+<h3>Training Objectives and Loss Formulations</h3>
+<p>Training a neural codec cannot rely on raw Mean Squared Error (MSE) in the time domain, which yields muffled, phase-averaged audio. Instead, modern codecs use a combination of complementary losses:</p>
+<div class="eq-panel">\[ \mathcal{L}_{\text{total}} = \mathcal{L}_{\text{time}}(x, \hat{x}) + \lambda_1 \mathcal{L}_{\text{freq}}(x, \hat{x}) + \lambda_2 \mathcal{L}_{\text{adv}}(\hat{x}) + \lambda_3 \mathcal{L}_{\text{feat}}(x, \hat{x}) + \lambda_4 \mathcal{L}_{\text{commit}} \]</div>
+<ul>
+<li><strong>Multi-Scale Spectral Loss (\(\mathcal{L}_{\text{freq}}\)):</strong> Computes linear and log-mel spectrogram distances across multiple STFT window sizes (e.g., \(N \in \{512, 1024, 2048\}\)) to penalize harmonic discrepancies.</li>
+<li><strong>Adversarial GAN Loss (\(\mathcal{L}_{\text{adv}}\)):</strong> Multi-scale and multi-period discriminators evaluate whether the reconstructed waveform \(\hat{x}\) contains realistic high-frequency textures and transients.</li>
+<li><strong>Commitment Loss (\(\mathcal{L}_{\text{commit}}\)):</strong> Forces encoder representations to stay close to chosen codebook vectors, preventing training divergence:
+<div class="eq-panel">\[ \mathcal{L}_{\text{commit}} = \Vert z_f - \text{sg}[\hat{z}_f]\Vert_2^2 \]</div>
+<em>(where \(\text{sg}[\cdot]\) denotes the stop-gradient operator).</em>
+</li>
+</ul>
 
-    <div class="callout">
-        <strong>MIDI vs codec (Lesson 2 tie-in):</strong> MIDI token <code>NOTE_ON 60</code> says <em>which key</em>, not <em>how the grand piano in this hall sounds</em>. Codec tokens capture the recording-grade timbre MIDI omits.
-    </div>
+<hr>
 
-    <hr>
+<h2>4. Vector Quantization (VQ) from First Principles</h2>
+<p>To understand how continuous space becomes discrete tokens, consider a concrete 2-dimensional vector quantization example.</p>
 
-    <h2>3. Autoencoder: encode → bottleneck → decode</h2>
-    <p>The codec learns a compressed representation by reconstruction:</p>
-    <ol>
-        <li><strong>Encoder</strong> <code>E</code>: waveform window → continuous latent <code>z</code>.</li>
-        <li><strong>Quantizer</strong> <code>Q</code>: <code>z →</code> nearest codebook IDs (information bottleneck).</li>
-        <li><strong>Decoder</strong> <code>D</code>: quantized latents → reconstructed waveform <code>x̂</code>.</li>
-    </ol>
+<h3>2D Worked Example</h3>
+<p>Let the continuous latent output of the encoder for a single frame be:</p>
+<div class="eq-panel">\[ z = [0.20, 0.90] \]</div>
+<p>Suppose the learned codebook contains \(V = 4\) prototype vectors located at the corners of a unit square:</p>
+<ul>
+<li>\(\text{ID } 0: e_0 = [0.0, 0.0]\)</li>
+<li>\(\text{ID } 1: e_1 = [1.0, 0.0]\)</li>
+<li>\(\text{ID } 2: e_2 = [0.0, 1.0]\)</li>
+<li>\(\text{ID } 3: e_3 = [1.0, 1.0]\)</li>
+</ul>
+<p>The quantizer computes Euclidean distances across all available prototypes:</p>
+<div class="eq-panel">\[ \Vert z - e_0\Vert_2^2 = (0.2 - 0.0)^2 + (0.9 - 0.0)^2 = 0.04 + 0.81 = 0.85 \]</div>
+<div class="eq-panel">\[ \Vert z - e_1\Vert_2^2 = (0.2 - 1.0)^2 + (0.9 - 0.0)^2 = 0.64 + 0.81 = 1.45 \]</div>
+<div class="eq-panel">\[ \Vert z - e_2\Vert_2^2 = (0.2 - 0.0)^2 + (0.9 - 1.0)^2 = 0.04 + 0.01 = \mathbf{0.05} \quad (\text{Minimum}) \]</div>
+<div class="eq-panel">\[ \Vert z - e_3\Vert_2^2 = (0.2 - 1.0)^2 + (0.9 - 1.0)^2 = 0.64 + 0.01 = 0.65 \]</div>
 
-    <div class="eq-panel">
-        Loss (conceptual): &nbsp; ‖ x − D(Q(E(x))) ‖² &nbsp;+ λ<sub>adv</sub> · discriminator(x, x̂) &nbsp;+ λ<sub>percept</sub> · perceptual_feat(x, x̂)
-    </div>
+<h3>Quantization Output</h3>
+<ol>
+<li>The quantizer outputs the discrete token <strong>\(\text{ID} = 2\)</strong>.</li>
+<li>The continuous vector passed to the decoder is replaced with \(\hat{z} = e_2 = [0.0, 1.0]\).</li>
+<li>The remaining reconstruction error (<strong>residual vector</strong>) is:
+<div class="eq-panel">\[ r = z - \hat{z} = [0.20 - 0.0, 0.90 - 1.0] = [0.20, -0.10] \]</div>
+</li>
+</ol>
 
-    <p>Adversarial and perceptual terms push reconstructions to <em>sound</em> good, not merely minimize MSE on samples (which favors blurry audio).</p>
-
-    <figure>
-        <img src="assets/m4_rvq.png" alt="RVQ diagram">
-        <figcaption>RVQ with encoder, stacked quantizers, decoder, and auxiliary losses. Adapted from <em>Machine Learning for Music</em> Module 4, used with instructor permission.</figcaption>
-    </figure>
-
-    <hr>
-
-    <h2>4. Vector quantization — worked 2-D example</h2>
-    <p>For each frame latent <code>z ∈ ℝ<sup>D</sup></code>, VQ picks argmin<sub>k</sub> ‖z − e<sub>k</sub>‖².</p>
-
-    <div class="worked">
-        <strong>Given</strong> <code>z = [0.2, 0.9]</code>, codebook (V=4):
-        <table>
-            <tr><th>ID</th><th>e<sub>k</sub></th><th>‖z − e<sub>k</sub>‖²</th></tr>
-            <tr><td>0</td><td>[0, 0]</td><td>0.04 + 0.81 = 0.85</td></tr>
-            <tr><td>1</td><td>[1, 0]</td><td>0.64 + 0.81 = 1.45</td></tr>
-            <tr><td>2</td><td>[0, 1]</td><td>0.04 + 0.01 = <strong>0.05 ✓</strong></td></tr>
-            <tr><td>3</td><td>[1, 1]</td><td>0.64 + 0.01 = 0.65</td></tr>
-        </table>
-        <p><strong>Output ID = 2</strong>, reconstruction <code>[0, 1]</code>, error vector <code>[0.2, −0.1]</code>.</p>
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 2:</strong> <code>z = [0.6, 0.1]</code> with same codebook — winner?
-        <details><summary>Show answer</summary><p>ID 1 ([1,0]) with distance 0.17.</p></details>
-    </div>
-
-    <hr>
-
-    <h2>5. Residual VQ (RVQ) — coarse then fine</h2>
-    <ol>
-        <li>Quantize <code>z</code> with book 1 → <code>ê<sup>(1)</sup></code>, residual <code>r<sup>(1)</sup> = z − ê<sup>(1)</sup></code>.</li>
-        <li>Quantize <code>r<sup>(1)</sup></code> with book 2 → add to reconstruction.</li>
-        <li>Repeat for K books (MusicGen commonly K=4).</li>
-    </ol>
-
-    <div class="worked">
-        <strong>MusicGen / EnCodec public specs (typical checkpoint)</strong>
-        <ul>
-            <li>Output audio: mono <strong>32 kHz</strong></li>
-            <li>Frame rate: <strong>50 Hz</strong> (20 ms per frame)</li>
-            <li>Codebooks: <strong>K = 4</strong></li>
-            <li>Entries per book: <strong>V ≈ 2048</strong></li>
-            <li>Token throughput: <code>50 × 4 = <strong>200 tokens/s</strong></code></li>
-        </ul>
-    </div>
-
-    <div class="calc-box">
-        <strong>Compression ratio vs raw 32 kHz 16-bit mono</strong>
-        <ul>
-            <li>Raw bitrate: <code>32,000 × 16 = 512 kbps</code></li>
-            <li>Idealized token bits: <code>200 × log₂(2048) = 200 × 11 ≈ 2.2 kbps</code></li>
-            <li>Ratio ≈ <code>512 / 2.2 ≈ 230×</code> — explains feasibility of AR modeling.</li>
-        </ul>
-    </div>
-
-    <figure>
-        <img src="assets/m4_quantized_lm.png" alt="LM over quantized audio">
-        <figcaption>Train an autoregressive LM on quantized sequences. Adapted from <em>Machine Learning for Music</em> Module 4, used with instructor permission.</figcaption>
-    </figure>
-
-    <div class="quiz">
-        <strong>Quiz 3:</strong> 8 s clip — frames F at 50 Hz? Total IDs with K=4?
-        <details><summary>Show answer</summary><p><code>F = 400</code>; IDs ≤ <code>400 × 4 = 1600</code>.</p></details>
-    </div>
-
-    <hr>
-
-    <h2>6. Shape trail (10 s @ 32 kHz)</h2>
-    <div class="shape-trail">x waveform:          (T,)     T = 10 × 32,000 = 320,000
-E(x) latents:        (F, D)   F = 500, D ≈ 128 (typical order-of-magnitude)
-Q latents:           (F, K)   K = 4 integer IDs ∈ [0, 2047]
-Lookup + sum:        (F, D)   embed IDs → vectors, sum per frame
-D(·) waveform:       (T,)     320,000 samples out</div>
-
-    <p>The LM predicts the flattened/interleaved stream derived from <code>(F, K)</code>, not the 320k floats directly.</p>
-
-    <hr>
-
-    <h2>7. Interleaving &amp; codebook delay</h2>
-    <p>Predicting all K books at frame t independently wastes coarse→fine structure. MusicGen applies a <strong>delay pattern</strong> so coarse books lead fine books across time steps.</p>
-
-    <figure>
-        <img src="assets/m4_codebook_delay.png" alt="Codebook delay pattern">
-        <figcaption>Prediction order across codebooks and frames. Adapted from <em>Machine Learning for Music</em> Module 4, used with instructor permission.</figcaption>
-    </figure>
-
-    <div class="info-box">
-        <strong>Why not independent codebooks?</strong> Fine detail (book 4) should condition on coarse outline (book 1) already chosen — mirroring RVQ’s residual design and reducing impossible ID combinations.
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 4 (bits):</strong> F=500, V=1024, K=4 — approximate total bits?
-        <details><summary>Show answer</summary><p><code>500 × 4 × log₂(1024) = 20,000 bits</code>. General: <strong>bits ≈ F · K · log₂(V)</strong>.</p></details>
-    </div>
-
-    <div class="quiz">
-        <strong>Quiz 5:</strong> Decoder’s role after MusicGen finishes predicting tokens?
-        <details><summary>Show answer</summary><p>Map codec IDs → latents → upsample to PCM waveform for playback.</p></details>
-    </div>
-
-    <hr>
-
-    <h2>8. Step-by-step generation mechanics (codec + LM)</h2>
-    <ol class="guided">
-        <li><strong>Initialize</strong> empty token list (or copy prefix IDs for continuation — Lesson 4).</li>
-        <li><strong>For each AR step</strong> t: transformer outputs logits vector length V over next codebook entry.</li>
-        <li><strong>Sample</strong> ID (greedy, temperature, top-p — same ideas as text GPT).</li>
-        <li><strong>Interleaver</strong> maps step index → (frame index, codebook index) via delay schedule.</li>
-        <li>After all frames: <strong>ID lookup</strong> → latent grid <code>(F, D)</code>.</li>
-        <li><strong>Decoder</strong> transposed convolutions / upsampling → <code>(T,)</code> waveform.</li>
-    </ol>
-
-    <div class="panel"># Simplified single-step view (one interleaved position)
-logits = LM(audio_tokens[:t], text_condition)   # shape (V,)
-next_id = categorical_sample(softmax(logits / temperature))
-audio_tokens.append(next_id)
-# ... repeat ~2000 times for 10s ...
-waveform = CodecDecoder(audio_tokens)</div>
-
-    <hr>
-
-    <h2>9. Guided lab (in-page): Audio Crushing</h2>
-    <p>Smaller dictionary V → harsher quantization — same principle as tiny codebooks.</p>
 <div class="interactive-box">
-        <div>
-            <button type="button" class="primary" id="crush-play">Play / replay phrase</button>
-            <button type="button" id="crush-stop">Stop</button>
-        </div>
-        <p style="margin:14px 0 6px;">
-            <label><strong>Sound dictionary size:</strong>
-                <span id="crush-size-lbl">1024</span> entries
-            </label><br>
-            <input type="range" id="crush-size" min="3" max="10" value="10" step="1">
-            <span style="font-size:0.85em;color:#64748b;">8 ← smaller ····· larger → 1024</span>
-        </p>
-        <p id="crush-status" style="font-size:0.9em;color:#64748b;">Adjust the slider, then play. Smaller dictionaries force each chunk onto fewer “prototype” sounds.</p>
-        <div class="token-stream" id="crush-tokens">Token stream will appear here…</div>
-    </div>
-    <div class="calc-box">
-        <strong>Interpret the math:</strong> Slider sets V. Mock stream: 24 frames × 1 book. Real EnCodec: IDs = <code>50 × duration × K</code>. At V=1024, bits ≈ <code>F · K · 10</code>. Halving effective V (via crushing) increases reconstruction error — listen for timbre snapping and pitch steps.
-    </div>
+<strong>Interactive: 2-D codebook</strong>
+<p style="margin:8px 0 12px;font-size:0.95em;color:#475569;">Four codebook vectors sit at the corners of the unit square. Click anywhere to place \(z\). The page computes all four squared distances and snaps \(z\) to the winner.</p>
+<canvas id="vq-canvas" width="420" height="320" style="max-width:420px; background:#fff; border:1px solid #cbd5e1;"></canvas>
+<pre class="shape-trail" id="vq-out" style="margin-bottom:0;">Click the plot.</pre>
+</div>
 
-    <hr>
+<hr>
 
-    <h2>10. Guided lab (online): MusicGen — connect prompts to tokens</h2>
-    <div class="tool-box">
-        <p style="margin-top:0;"><strong>Space:</strong> <a href="https://huggingface.co/spaces/facebook/MusicGen" target="_blank" rel="noopener">facebook/MusicGen</a></p>
-        <ol class="guided">
-            <li>Prompt A: <code>gentle lo-fi beat with soft piano</code>. Estimate <code>F = duration × 50</code>, total AR steps ≈ <code>F × 4</code>.</li>
-            <li>Prompt B: <code>distorted electric guitar metal riff</code>. Same duration.</li>
-            <li>Write 3 differences you hear that <em>must</em> live in different codec tokens (transients, distortion harmonics, reverb tail).</li>
-            <li>Sketch: text → (Lesson 4) → token IDs → decoder → waveform (this lesson).</li>
-            <li>Optional: <a href="https://ai.meta.com/blog/audiocraft-musicgen-audiogen-encodec-generative-ai-audio/" target="_blank" rel="noopener">AudioCraft blog</a> — label RVQ on diagram.</li>
-            <li><strong>Why not MIDI?</strong> Explain in 2 sentences why neither prompt is MIDI-native.</li>
-        </ol>
-    </div>
+<h2>5. Residual Vector Quantization (RVQ): Stacking Codebooks</h2>
+<p>In practical neural codecs, latent dimensions are high-dimensional (\(D = 128\)). A single codebook containing \(V = 2,048\) entries cannot adequately cover a 128-dimensional continuous space. Expanding a single codebook to millions of vectors causes codebook collapse and extreme memory costs.</p>
+<p><strong>Residual Vector Quantization (RVQ)</strong> solves this by chaining \(K\) separate codebooks hierarchically:</p>
+<pre class="shape-trail">Continuous Latent Vector z
+   │
+   ├──────► [ Quantizer 1 ] ──► Codebook 1 ID (k₁) ──► Vector e⁽¹⁾
+   │                                                    │
+   ▼                                                    │
+Residual r₁ = z - e⁽¹⁾                                  │
+   │                                                    │
+   ├──────► [ Quantizer 2 ] ──► Codebook 2 ID (k₂) ──► Vector e⁽²⁾
+   │                                                    │
+   ▼                                                    │
+Residual r₂ = r₁ - e⁽²⁾                                 │
+   │                                                    │
+   ├──────► [ Quantizer 3 ] ──► Codebook 3 ID (k₃) ──► Vector e⁽³⁾
+   │                                                    │
+   ▼                                                    │
+Residual r₃ = r₂ - e⁽³⁾                                 │
+   │                                                    │
+   └──────► [ Quantizer 4 ] ──► Codebook 4 ID (k₄) ──► Vector e⁽⁴⁾
+                                                        │
+                                                        ▼
+Final Quantized Reconstruction: ẑ = e⁽¹⁾ + e⁽²⁾ + e⁽³⁾ + e⁽⁴⁾</pre>
 
-    <div class="bridge">
-        <strong>Next — Lesson 4 (Conditioning):</strong> Tokens define the alphabet; conditions steer which tokens are likely.<br>
-        → <a href="lesson4.html">Lesson 4: Steering the AI</a> · <a href="lesson2.html">← Lesson 2</a>
-    </div>
+<figure>
+<img src="assets/m4_quantized_lm.png" alt="Residual codebooks across time steps">
+<figcaption><strong>Figure.</strong> Residual codebooks: rows \(k_1\ldots k_4\) are the \(K\) books; columns are time frames. Each column is one frame’s RVQ IDs. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
 
+<h3>The Coarse-to-Fine Hierarchy</h3>
+<ul>
+<li><strong>Stage 1 (\(k_1\)):</strong> Captures high-energy structural acoustic components (fundamental pitch, major vowel formants, primary transients).</li>
+<li><strong>Stages 2–4 (\(k_2, k_3, k_4\)):</strong> Incrementally quantize residual error vectors, restoring fine timbral details, breathiness, distortion harmonics, and room reverberation.</li>
+</ul>
 
-    <hr>
+<h3>Production Specifications: Meta's EnCodec &amp; MusicGen</h3>
+<ul>
+<li><strong>Output Audio Sample Rate:</strong> \(32,000\text{ Hz}\) mono</li>
+<li><strong>Framing Rate:</strong> \(50\text{ Hz}\) (\(20\text{ ms}\) per frame)</li>
+<li><strong>Number of Codebooks (\(K\)):</strong> \(4\) stages</li>
+<li><strong>Codebook Cardinality (\(V\)):</strong> \(2,048\) entries per book</li>
+<li><strong>Token Throughput:</strong> \(50\text{ frames/s} \times 4\text{ books} = \mathbf{200\text{ tokens/second}}\)</li>
+</ul>
 
-    <h2>11. Training vs inference (two-phase story)</h2>
-    <p>Production systems almost always <strong>train the codec first</strong>, then train (or fine-tune) the language model on frozen codec tokens.</p>
-    <table>
-        <thead><tr><th>Phase</th><th>What learns</th><th>Data</th><th>Loss intuition</th></tr></thead>
-        <tbody>
-            <tr><td>Codec pretrain</td><td>Encoder, decoder, codebooks</td><td>Raw audio clips</td><td>Reconstruct waveform + perceptual/adversarial</td></tr>
-            <tr><td>LM train</td><td>Transformer over discrete IDs</td><td>(text, audio) pairs tokenized</td><td>Next-token cross-entropy</td></tr>
-            <tr><td>Inference</td><td>Nothing (weights frozen)</td><td>User prompt</td><td>Sample tokens → decode once</td></tr>
-        </tbody>
-    </table>
-    <p>You do not backpropagate from speaker air pressure into the codec during MusicGen inference — the decoder is a fixed “sound card” for token sequences.</p>
+<h3>Bitrate and Compression Ratio Computation</h3>
+<div class="eq-panel">\[ \text{Bitrate} = \text{Frame Rate} \times K \times \log_2(V) \]</div>
+<div class="eq-panel">\[ \text{Bitrate} = 50 \times 4 \times \log_2(2048) = 50 \times 4 \times 11\text{ bits} = \mathbf{2.20\text{ kbps}} \]</div>
+<p>Comparing this to uncompressed 16-bit mono audio at \(32\text{ kHz}\):</p>
+<div class="eq-panel">\[ \text{Raw PCM Bitrate} = 32,000\text{ samples/s} \times 16\text{ bits/sample} = \mathbf{512\text{ kbps}} \]</div>
+<div class="eq-panel">\[ \text{Compression Factor} = \frac{512\text{ kbps}}{2.20\text{ kbps}} \approx \mathbf{232.7\times} \]</div>
+<p>The neural codec compresses raw audio by more than \(230\times\) into a compact discrete token stream while retaining perceptual quality.</p>
 
-    <hr>
+<div class="interactive-box">
+<strong>Lab: Audio crushing (tiny codebook)</strong>
+<p style="margin:8px 0 12px;font-size:0.95em;color:#475569;">Hear what happens when vocabulary size \(V\) collapses — the same principle as a tiny single codebook. Smaller dictionaries force each chunk onto fewer prototype sounds.</p>
+<div>
+<button type="button" class="primary" id="crush-play">Play / replay phrase</button>
+<button type="button" id="crush-stop">Stop</button>
+</div>
+<p style="margin:14px 0 6px;">
+<label><strong>Sound dictionary size:</strong>
+<span id="crush-size-lbl">1024</span> entries
+</label><br>
+<input type="range" id="crush-size" min="3" max="10" value="10" step="1">
+<span style="font-size:0.85em;color:#64748b;">8 ← smaller ····· larger → 1024</span>
+</p>
+<p id="crush-status" style="font-size:0.9em;color:#64748b;">Adjust the slider, then play.</p>
+<div class="token-stream" id="crush-tokens">Token stream will appear here…</div>
+</div>
 
-    <h2>12. Micro walkthrough — one 20 ms frame</h2>
-    <div class="worked">
-        <strong>Frame index f = 42</strong> at 32 kHz, 50 Hz framing:
-        <ul>
-            <li>Covers samples roughly <code>[33600, 34240)</code> (640 samples ≈ 20 ms).</li>
-            <li>Encoder emits continuous <code>z<sub>42</sub> ∈ ℝ<sup>128</sup></code>.</li>
-            <li>RVQ selects IDs <code>(k1, k2, k3, k4)</code> e.g. <code>(402, 88, 1201, 55)</code>.</li>
-            <li>Reconstruction <code>ẑ<sub>42</sub> = e<sup>(1)</sup><sub>402</sub> + e<sup>(2)</sup><sub>88</sub> + …</code></li>
-            <li>Decoder uses <code>ẑ<sub>42</sub></code> with neighbors to synthesize those 640 samples.</li>
-        </ul>
-        <p>During generation, the LM never sees <code>z</code> directly — it predicts the four IDs using past IDs + (Lesson 4) text condition.</p>
-    </div>
+<hr>
 
-    <hr>
+<h2>6. Autoregressive Modeling with Multi-Codebook Tokens: Codebook Delay</h2>
+<p>Because each audio frame is quantized into \(K = 4\) parallel tokens rather than a single scalar, an autoregressive language model must decide how to order and predict these tokens over time.</p>
+<p>A naive approach might predict all \(K\) codebook indices independently at each frame. However, this ignores the hierarchical dependency: fine codebook tokens (\(k_2, k_3, k_4\)) depend directly on the choices made in coarse codebooks (\(k_1\)).</p>
 
-    <h2>13. Common misconceptions (check yourself)</h2>
-    <table>
-        <thead><tr><th>Myth</th><th>Reality</th></tr></thead>
-        <tbody>
-            <tr><td>“Spectrogram pixels are the tokens”</td><td>MusicGen uses learned codec IDs, not raw STFT bins (other models may differ).</td></tr>
-            <tr><td>“Each token is one note”</td><td>Tokens are ~20 ms acoustic atoms; one note may span many frames.</td></tr>
-            <tr><td>“Bigger V always better”</td><td>Diminishing returns; training stability and data matter too.</td></tr>
-            <tr><td>“Decoder invents new sounds”</td><td>Decoder only combines codebook entries it was trained on.</td></tr>
-        </tbody>
-    </table>
+<h3>The MusicGen Codebook Delay Pattern</h3>
+<p>MusicGen introduces a temporal <strong>delay pattern</strong> that offsets the sequence of codebooks relative to one another:</p>
+<pre class="shape-trail">Time Step t:   t=0    t=1    t=2    t=3    t=4    t=5
+───────────────────────────────────────────────────────
+Codebook 1:    k1,0   k1,1   k1,2   k1,3   k1,4   k1,5
+Codebook 2:    &lt;pad&gt;  k2,0   k2,1   k2,2   k2,3   k2,4
+Codebook 3:    &lt;pad&gt;  &lt;pad&gt;  k3,0   k3,1   k3,2   k3,3
+Codebook 4:    &lt;pad&gt;  &lt;pad&gt;  &lt;pad&gt;  k4,0   k4,1   k4,2</pre>
 
-    <div class="quiz">
-        <strong>Quiz 6 (numerical):</strong> Raw 10 s @ 32 kHz vs 2000 codec steps — what is the AR sequence shortening factor vs sample-level?
-        <details><summary>Show answer</summary><p><code>320,000 / 2,000 = 160×</code> fewer autoregressive steps than sample-level (same clip length).</p></details>
-    </div>
+<figure>
+<img src="assets/m4_codebook_delay.png" alt="MusicGen delay pattern across residual codebooks">
+<figcaption><strong>Figure.</strong> Delay pattern: coarse books lead fine books across time steps; zeros/padding on the left keep that ordering. Adapted from Machine Learning for Music (University of Washington), used with instructor permission.</figcaption>
+</figure>
 
+<h3>Why Delay Matters</h3>
+<p>By shifting codebook \(k_i\) by \(i-1\) time steps:</p>
+<ol>
+<li>When the Transformer predicts fine details for frame \(0\) (via Codebook 4 at step \(t=3\)), it has already attended to the coarse representations of frame \(0\) across Codebooks 1, 2, and 3 from previous autoregressive steps.</li>
+<li>The network processes \(K\) parallel streams per step without requiring a \(K\times\) deeper autoregressive factorized unrolling.</li>
+</ol>
 
-    <div class="quiz">
-        <strong>Quiz 7:</strong> If V=2048 and you store one ID per frame (K=1 only) for 10 s @ 50 Hz, approximate bits?
-        <details><summary>Show answer</summary><p><code>500 × log₂(2048) = 500 × 11 = 5500 bits</code> (~687 bytes). RVQ uses K=4 for quality, not because one book lacks bits.</p></details>
-    </div>
+<hr>
 
+<h2>7. End-to-End Generative Workflow</h2>
+<pre class="shape-trail">[ Training Stage 1: Pretrain Codec ]
+Raw Audio Repository ──► [ Train Conv Encoder + RVQ + Conv Decoder ]
+                         (Loss: Multi-Scale Spectral + GAN)
+                                │
+                                ▼
+                       Freeze Codec Weights
 
-    <div class="callout">
-        <strong>Metaphor (reprise):</strong> A codebook is a paint palette with V premixed colors. RVQ lets you layer up to K colors per stroke. The LM is the painter choosing palette indices; the decoder is the printer that turns indices into audible paint on the canvas of time.
-    </div>
+[ Training Stage 2: Train Autoregressive Transformer ]
+Paired Audio Waveform ──► [ Frozen Encoder + RVQ ] ──► Discrete Token Grid (F × K)
+Text Prompt           ──► [ T5 Text Encoder ]     ──► Conditioning Embeddings
+                                                             │
+                                                             ▼
+                                                [ Autoregressive Transformer ]
+                                                (Loss: Next-Token Cross-Entropy)
 
+[ Inference Phase: Generating New Sound ]
+User Text Prompt ──► [ T5 Encoder ] ──► [ AR Transformer Sampling (Temperature/Top-p) ]
+                                                    │
+                                                    ▼
+                                       Predicted Token Tensor (F × K)
+                                                    │
+                                                    ▼
+                                       Codebook Embedding Lookup + Sum
+                                                    │
+                                                    ▼
+                                       Quantized Latents ẑ ∈ ℝ^(F × D)
+                                                    │
+                                                    ▼
+                                       [ Frozen Codec Decoder ]
+                                                    │
+                                                    ▼
+                                       Output Audio Waveform x̂ ∈ ℝ^T</pre>
 
-    <hr>
-    <h2>14. Checkpoint literacy (reading model cards)</h2>
-    <p>When you open an AudioCraft or Hugging Face model card, map fields to this lesson:</p>
-    <table>
-        <thead><tr><th>Card field</th><th>Maps to</th></tr></thead>
-        <tbody>
-            <tr><td><code>sample_rate</code> 32 kHz</td><td>Output T = duration × 32000</td></tr>
-            <tr><td><code>frame_rate</code> 50 Hz</td><td>F = duration × 50</td></tr>
-            <tr><td><code>num_codebooks</code> 4</td><td>K in shape trail</td></tr>
-            <tr><td><code>codebook_size</code> 2048</td><td>V in softmax / bit formula</td></tr>
-            <tr><td><code>audio_channels</code> 1</td><td>Mono vs stereo waveform shape</td></tr>
-        </tbody>
-    </table>
-    <p>Practice: for a 15 s generation, compute <code>F</code>, total tokens, and approximate bits before clicking Generate.</p>
+<div class="tool-box">
+<p style="margin-top:0;"><strong>Try it:</strong> <a href="https://huggingface.co/spaces/facebook/MusicGen" target="_blank" rel="noopener">facebook/MusicGen</a> on Hugging Face · Background: <a href="https://ai.meta.com/blog/audiocraft-musicgen-audiogen-encodec-generative-ai-audio/" target="_blank" rel="noopener">AudioCraft blog</a></p>
+<p>Generate a short clip and estimate \(F = \text{duration} \times 50\) frames and roughly \(F \times 4\) AR token decisions — the discrete stream this lesson describes.</p>
+</div>
 
+<hr>
 
-    <hr>
-    <h2>15. Quick reference card</h2>
-    <table>
-        <tr><th>Quantity</th><th>Formula</th></tr>
-        <tr><td>Samples T</td><td><code>duration × sample_rate</code></td></tr>
-        <tr><td>Frames F</td><td><code>duration × 50</code> (MusicGen)</td></tr>
-        <tr><td>AR steps</td><td><code>F × K</code> (K=4)</td></tr>
-        <tr><td>Bits (ideal)</td><td><code>F × K × log₂(V)</code></td></tr>
-        <tr><td>Compression vs PCM</td><td><code>(sample_rate × bits_per_sample) / (50 × K × log₂(V))</code></td></tr>
-    </table>
+<h2>Knowledge Verification</h2>
 
-    <hr>
-    <h2>Further reading</h2>
-    <ul>
-        <li>Défossez et al., EnCodec paper.</li>
-        <li><a href="https://github.com/facebookresearch/audiocraft" target="_blank" rel="noopener">AudioCraft repository</a>.</li>
-        <li>Module 4 RVQ slides (<em>Machine Learning for Music</em>, instructor permission).</li>
-    </ul>
+<div class="quiz">
+<strong>1. Codec Tensor Dimensionality</strong>
+<p><strong>Question:</strong> You pass a \(6.0\text{-second}\) mono audio recording sampled at \(32,000\text{ Hz}\) through a neural codec. The convolutional encoder applies downsampling with successive layer strides of \([2, 4, 5, 8]\). The RVQ bottleneck uses \(K = 8\) residual codebooks, each containing \(V = 1,024\) entries with embedding dimension \(D = 128\).</p>
+<ol>
+<li>What is the total temporal downsampling factor?</li>
+<li>What is the latent frame rate (\(f_{\text{codec}}\))?</li>
+<li>What is the exact shape of the continuous latent tensor \(z = E(x)\) before quantization?</li>
+<li>What is the exact shape of the discrete token tensor produced by the RVQ layer?</li>
+</ol>
+<details>
+<summary>Show answer</summary>
+<ol>
+<li>Total stride \(= 2 \times 4 \times 5 \times 8 = \mathbf{320}\).</li>
+<li>Latent frame rate \(= \frac{32,000\text{ Hz}}{320} = \mathbf{100\text{ Hz}}\) (100 frames per second).</li>
+<li>Total frames \(F = 6.0\text{ s} \times 100\text{ frames/s} = 600\text{ frames}\). Continuous latent shape: <strong><code>(600, 128)</code></strong> (or <code>(1, 128, 600)</code> with batch and channel ordering).</li>
+<li>Discrete token shape: <strong><code>(600, 8)</code></strong> (representing \(600\) time frames across \(8\) residual codebook indices).</li>
+</ol>
+</details>
+</div>
 
+<div class="quiz">
+<strong>2. Compression Calculations</strong>
+<p><strong>Question:</strong> Compute the uncompressed PCM bitrate for \(48\text{ kHz}\), 24-bit stereo audio. Then, calculate the bitrate of a neural codec operating at \(75\text{ Hz}\) frame rate with \(K = 6\) codebooks and \(V = 2,048\) entries. What is the compression factor achieved by the codec?</p>
+<details>
+<summary>Show answer</summary>
+<ol>
+<li>Uncompressed PCM bitrate:
+<div class="eq-panel">\[ \text{PCM Bitrate} = 48,000\text{ samples/s} \times 24\text{ bits/sample} \times 2\text{ channels} = \mathbf{2,304\text{ kbps}} \]</div>
+</li>
+<li>Codec bitrate:
+<div class="eq-panel">\[ \text{Bits per token} = \log_2(2048) = 11\text{ bits} \]</div>
+<div class="eq-panel">\[ \text{Codec Bitrate} = 75\text{ frames/s} \times 6\text{ books/frame} \times 11\text{ bits/token} = 4,950\text{ bps} = \mathbf{4.95\text{ kbps}} \]</div>
+</li>
+<li>Compression factor:
+<div class="eq-panel">\[ \text{Compression Ratio} = \frac{2304\text{ kbps}}{4.95\text{ kbps}} \approx \mathbf{465.45\times} \]</div>
+</li>
+</ol>
+</details>
+</div>
+
+<hr>
+
+<h2>Key Takeaways &amp; What's Next</h2>
+<ul>
+<li><strong>Neural codecs bridge physics and language modeling:</strong> They turn long, high-frequency waveforms into short, discrete token sequences that standard Transformers can generate.</li>
+<li><strong>Vector Quantization uses nearest-neighbor lookup:</strong> Continuous latent vectors are mapped to the closest codebook prototype vectors, producing discrete token indices.</li>
+<li><strong>RVQ enables coarse-to-fine fidelity:</strong> Chaining codebooks recursively quantizes residual error, capturing high-level musical structure in early books and fine textures in later books.</li>
+<li><strong>Codebook delay aligns dependencies:</strong> Shifting multi-codebook streams allows Transformers to condition fine timbral tokens on earlier coarse predictions.</li>
+</ul>
+<p>Now that we have established how audio is tokenized into discrete vocabularies, we can look at control: <strong>How do we steer these models to generate specific genres, instruments, tempos, or melodies?</strong></p>
+<p>In <strong>Lesson 4</strong>, we explore <strong>Conditioning Mechanisms</strong>, analyzing how text prompts, cross-attention layers, and Classifier-Free Guidance (CFG) direct generative audio models.</p>
+
+<div class="bridge">
+<strong>Further reading</strong>
+<ul style="margin:8px 0 0;">
+<li>Défossez et al., EnCodec paper</li>
+<li><a href="https://github.com/facebookresearch/audiocraft" target="_blank" rel="noopener">AudioCraft repository</a></li>
+<li>Module 4 RVQ slides (<em>Machine Learning for Music</em>, instructor permission)</li>
+</ul>
+</div>
+
+<table border="0" width="100%" style="margin-top:30px;">
+<tr>
+<td align="left"><button onclick="window.location.href='lesson2.html'" style="padding: 10px 20px; cursor: pointer;">Previous: Lesson 2</button></td>
+<td align="right"><button onclick="window.location.href='lesson4.html'" style="padding: 10px 20px; cursor: pointer; font-weight: bold;">Next: Lesson 4 — Conditioning</button></td>
+</tr>
+</table>
 
 </div>
 
@@ -551,33 +543,27 @@ waveform = CodecDecoder(audio_tokens)</div>
         playing = [];
     }
 
-    function playCrushed() {
-        stop();
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
+    function scheduleCrushed() {
         var n = dictSize();
-        // Quantize a melody + timbre into n discrete pitch/timbre “codes”
         var melody = [60, 62, 64, 65, 67, 65, 64, 62, 60, 60, 67, 67, 65, 64, 62, 60];
-        var t0 = audioCtx.currentTime + 0.05;
+        var t0 = audioCtx.currentTime + 0.08;
         var step = 0.18;
 
         melody.forEach(function (midi, i) {
-            // Map continuous intent onto coarse codebook
             var code = Math.round((midi / 127) * (n - 1));
             var qMidi = Math.round((code / Math.max(1, n - 1)) * 127);
-            // Also quantize waveform shape richness
             var partials = Math.max(1, Math.round(Math.log2(n)));
+            var start = t0 + i * step;
+            var end = start + step * 0.95;
 
             var g = audioCtx.createGain();
-            g.gain.setValueAtTime(0.0001, t0 + i * step);
-            g.gain.exponentialRampToValueAtTime(0.12, t0 + i * step + 0.02);
-            g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * step + step * 0.95);
+            g.gain.setValueAtTime(0.001, start);
+            g.gain.linearRampToValueAtTime(0.14, start + 0.02);
+            g.gain.linearRampToValueAtTime(0.001, end);
             g.connect(audioCtx.destination);
 
             for (var p = 1; p <= partials; p++) {
                 var osc = audioCtx.createOscillator();
-                // Bitcrush-ish: snap frequency to fewer levels when n is small
                 var f = 440 * Math.pow(2, (qMidi - 69) / 12) * p;
                 if (n <= 32) {
                     f = Math.round(f / 40) * 40;
@@ -590,18 +576,94 @@ waveform = CodecDecoder(audio_tokens)</div>
                 pg.gain.value = 0.2 / p;
                 osc.connect(pg);
                 pg.connect(g);
-                osc.start(t0 + i * step);
-                osc.stop(t0 + i * step + step);
+                osc.start(start);
+                osc.stop(end + 0.02);
                 playing.push(osc);
             }
         });
         tokensEl.textContent = mockTokens(n);
+    }
+    function playCrushed() {
+        stop();
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().then(scheduleCrushed);
+        } else {
+            scheduleCrushed();
+        }
     }
 
     slider.addEventListener('input', updateLabel);
     document.getElementById('crush-play').addEventListener('click', playCrushed);
     document.getElementById('crush-stop').addEventListener('click', stop);
     updateLabel();
+})();
+
+(function () {
+    var canvas = document.getElementById('vq-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var out = document.getElementById('vq-out');
+    var book = [[0,0],[1,0],[0,1],[1,1]];
+    var z = [0.2, 0.9];
+
+    function toXY(p) {
+        return { x: 40 + p[0] * 320, y: 280 - p[1] * 240 };
+    }
+    function dist2(a, b) {
+        var dx = a[0]-b[0], dy = a[1]-b[1];
+        return dx*dx + dy*dy;
+    }
+    function winner() {
+        var best = 0, bestD = dist2(z, book[0]);
+        for (var i = 1; i < 4; i++) {
+            var d = dist2(z, book[i]);
+            if (d < bestD) { bestD = d; best = i; }
+        }
+        return { id: best, d: bestD };
+    }
+    function draw() {
+        ctx.fillStyle = '#f8fafc'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.strokeRect(40, 40, 320, 240);
+        ctx.fillStyle = '#64748b'; ctx.font = '12px sans-serif';
+        ctx.fillText('e0 [0,0]', 8, 300);
+        ctx.fillText('e1 [1,0]', 340, 300);
+        ctx.fillText('e2 [0,1]', 8, 32);
+        ctx.fillText('e3 [1,1]', 340, 32);
+        var w = winner();
+        var zp = toXY(z), ep = toXY(book[w.id]);
+        ctx.strokeStyle = '#94a3b8'; ctx.setLineDash([4,4]);
+        ctx.beginPath(); ctx.moveTo(zp.x, zp.y); ctx.lineTo(ep.x, ep.y); ctx.stroke();
+        ctx.setLineDash([]);
+        book.forEach(function (e, i) {
+            var p = toXY(e);
+            ctx.fillStyle = i === w.id ? '#16a34a' : '#2563eb';
+            ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#0f172a'; ctx.fillText('ID '+i, p.x+10, p.y-8);
+        });
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath(); ctx.arc(zp.x, zp.y, 7, 0, Math.PI*2); ctx.fill();
+        ctx.fillText('z', zp.x+10, zp.y-8);
+        var lines = ['z = [' + z[0].toFixed(2) + ', ' + z[1].toFixed(2) + ']'];
+        book.forEach(function (e, i) {
+            lines.push('ID ' + i + '  ‖z−e‖² = ' + dist2(z, e).toFixed(3) + (i===w.id ? '  ← winner' : ''));
+        });
+        lines.push('Store ID ' + w.id + ', reconstruct e = [' + book[w.id].join(', ') + ']');
+        lines.push('Residual r = [' + (z[0]-book[w.id][0]).toFixed(2) + ', ' + (z[1]-book[w.id][1]).toFixed(2) + ']  (RVQ book 2 would encode this)');
+        out.textContent = lines.join('\n');
+    }
+    canvas.addEventListener('click', function (e) {
+        var r = canvas.getBoundingClientRect();
+        var x = (e.clientX - r.left) * (canvas.width / r.width);
+        var y = (e.clientY - r.top) * (canvas.height / r.height);
+        z = [
+            Math.min(1, Math.max(0, (x - 40) / 320)),
+            Math.min(1, Math.max(0, (280 - y) / 240))
+        ];
+        draw();
+    });
+    draw();
 })();
 </script>
 
