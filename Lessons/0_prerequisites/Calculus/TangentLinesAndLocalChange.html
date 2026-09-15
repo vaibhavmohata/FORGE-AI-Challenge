@@ -1,0 +1,411 @@
+<style>
+
+body{
+    font-family:Arial,sans-serif;
+    line-height:1.75;
+    color:#111827;
+    padding:24px;
+}
+
+h1,h2,h3{
+    color:#111827;
+}
+
+p{
+    margin:14px 0;
+}
+
+canvas{
+    border:1px solid #d1d5db;
+    background:white;
+    display:block;
+    max-width:100%;
+    border-radius:8px;
+}
+
+.math-box{
+    background:#f3f4f6;
+    padding:14px;
+    border-radius:10px;
+    margin:14px 0;
+}
+
+.info-card{
+    background:#f8fafc;
+    border:1px solid #dbeafe;
+    border-radius:12px;
+    padding:18px;
+    margin-top:18px;
+}
+
+.control-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:16px;
+    margin:20px 0;
+}
+
+input[type="text"]{
+    width:100%;
+    padding:10px;
+    font-size:15px;
+    border:1px solid #cbd5e1;
+    border-radius:8px;
+    box-sizing:border-box;
+}
+
+input[type="range"]{
+    width:100%;
+}
+
+.equation-display{
+    background:white;
+    border:1px solid #d1d5db;
+    border-radius:8px;
+    padding:14px;
+    margin-top:10px;
+    overflow-x:auto;
+    text-align:center;
+    font-size:18px;
+    min-height:60px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+}
+
+th,td{
+    border:1px solid #d1d5db;
+    padding:10px;
+    text-align:left;
+}
+
+th{
+    background:#f3f4f6;
+}
+
+</style>
+
+<h1>Tangent Lines and Local Change</h1>
+
+<p>
+To begin studying calculus, we first need to understand an important geometric idea:
+the <strong>tangent line</strong>.
+</p>
+
+<p>
+When looking at a curved graph, it may be difficult to describe how the graph is behaving at one exact point.
+A tangent line helps us zoom in locally and approximate the curve with a straight line.
+</p>
+
+<hr>
+
+<h2>1. What Is a Tangent Line?</h2>
+
+<p>
+A <strong>tangent line</strong> is a straight line that touches a curve at a specific point and follows the direction of the curve at that location.
+</p>
+
+<p>
+If you zoom in closely enough on a smooth curve, the curve begins to look almost straight near that point.
+The tangent line represents this local straight-line behavior.
+</p>
+
+<p>
+In other words, we can examine the "slope" of a continuous function at a point with a tangent line.
+</p>
+
+<hr>
+
+<h2>2. Interactive Tangent Line Explorer</h2>
+
+<p>Let's consider the polynomial</p>
+
+<div class="math-box">
+\[
+f(x)=ax^3+bx^2+cx+d
+\]
+</div>
+
+<p>
+The interactive graph below lets you customize the coefficients and move a point along the curve.
+As the point moves, the tangent line updates automatically.
+</p>
+
+<div class="control-grid">
+
+<div>
+<label><strong>a coefficient</strong></label>
+<input type="text" id="poly_a" value="1">
+</div>
+
+<div>
+<label><strong>b coefficient</strong></label>
+<input type="text" id="poly_b" value="0">
+</div>
+
+<div>
+<label><strong>c coefficient</strong></label>
+<input type="text" id="poly_c" value="0">
+</div>
+
+<div>
+<label><strong>d coefficient</strong></label>
+<input type="text" id="poly_d" value="0">
+</div>
+
+</div>
+
+<br>
+
+<label>
+<strong>Tangent Point (x-coordinate):</strong>
+<span id="x0Val">1.0</span>
+</label>
+
+<input
+type="range"
+id="poly_x0"
+min="-10"
+max="10"
+step="0.1"
+value="1"
+>
+
+<br><br>
+
+<canvas id="graph" width="850" height="450"></canvas>
+
+<div class="info-card">
+
+<h3>Current Tangent Information</h3>
+
+<p>
+<strong>Point on Curve:</strong>
+(<span id="pointX"></span>, <span id="pointY"></span>)
+</p>
+
+<p>
+<strong>Tangent Line Slope:</strong>
+<span id="slopeOut"></span>
+</p>
+
+<p><strong>Tangent Line Equation</strong></p>
+
+<div class="equation-display" id="lineEq"></div>
+
+</div>
+
+<hr>
+
+<h2>3. Understanding the Graph</h2>
+
+<table>
+
+<tr>
+<th>Visual Element</th>
+<th>Meaning</th>
+</tr>
+
+<tr>
+<td>Blue curve</td>
+<td>The polynomial function you created</td>
+</tr>
+
+<tr>
+<td>Red line</td>
+<td>The tangent line touching the curve</td>
+</tr>
+
+<tr>
+<td>Black point</td>
+<td>The exact location where the tangent line touches the graph</td>
+</tr>
+
+</table>
+
+<p>
+Try moving the tangent point slider slowly across the graph.
+Notice how:
+</p>
+
+<ul>
+<li>The tangent line rotates as the curve changes direction</li>
+<li>Steeper upward sections create larger positive slopes</li>
+<li>Downward sections create negative slopes</li>
+<li>Flat regions produce slopes near zero</li>
+</ul>
+
+<script>
+
+const canvas = document.getElementById('graph');
+const ctx = canvas.getContext('2d');
+
+document.querySelectorAll('input').forEach(el=>{
+    el.addEventListener('input', draw);
+});
+
+function getVals(){
+
+    return {
+        a: parseFloat(document.getElementById('poly_a').value) || 0,
+        b: parseFloat(document.getElementById('poly_b').value) || 0,
+        c: parseFloat(document.getElementById('poly_c').value) || 0,
+        d: parseFloat(document.getElementById('poly_d').value) || 0,
+        x0: parseFloat(document.getElementById('poly_x0').value) || 0
+    };
+}
+
+function f(x,p){
+    return (
+        p.a*x*x*x +
+        p.b*x*x +
+        p.c*x +
+        p.d
+    );
+}
+
+function fp(x,p){
+    return (
+        3*p.a*x*x +
+        2*p.b*x +
+        p.c
+    );
+}
+
+function toCanvasX(x){
+    return 425 + x*35;
+}
+
+function toCanvasY(y){
+    return 225 - y*15;
+}
+
+function drawAxes(){
+
+    ctx.strokeStyle='#9ca3af';
+    ctx.lineWidth=1;
+
+    ctx.beginPath();
+    ctx.moveTo(0,225);
+    ctx.lineTo(850,225);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(425,0);
+    ctx.lineTo(425,450);
+    ctx.stroke();
+}
+
+function draw(){
+
+    const p=getVals();
+
+    document.getElementById('x0Val').textContent =
+        p.x0.toFixed(1);
+
+    ctx.clearRect(0,0,850,450);
+
+    drawAxes();
+
+    ctx.strokeStyle='#2563eb';
+    ctx.lineWidth=2.5;
+    ctx.beginPath();
+
+    let first=true;
+
+    for(let x=-12;x<=12;x+=0.03){
+
+        const y=f(x,p);
+
+        const px=toCanvasX(x);
+        const py=toCanvasY(y);
+
+        if(first){
+            ctx.moveTo(px,py);
+            first=false;
+        }else{
+            ctx.lineTo(px,py);
+        }
+    }
+
+    ctx.stroke();
+
+    const x0=p.x0;
+    const y0=f(x0,p);
+    const m=fp(x0,p);
+
+    ctx.strokeStyle='#dc2626';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+
+    let first2=true;
+
+    for(let x=-12;x<=12;x+=0.03){
+
+        const y=y0 + m*(x-x0);
+
+        const px=toCanvasX(x);
+        const py=toCanvasY(y);
+
+        if(first2){
+            ctx.moveTo(px,py);
+            first2=false;
+        }else{
+            ctx.lineTo(px,py);
+        }
+    }
+
+    ctx.stroke();
+
+    ctx.fillStyle='#111827';
+
+    ctx.beginPath();
+    ctx.arc(
+        toCanvasX(x0),
+        toCanvasY(y0),
+        5,
+        0,
+        Math.PI*2
+    );
+    ctx.fill();
+
+    document.getElementById('pointX').textContent =
+        x0.toFixed(2);
+
+    document.getElementById('pointY').textContent =
+        y0.toFixed(2);
+
+    document.getElementById('slopeOut').textContent =
+        m.toFixed(3);
+
+    const clean = (v) => Math.abs(v) < 1e-10 ? 0 : v;
+
+    const mm = clean(m);
+    const bb = clean(y0 - m*x0);
+
+    const sign = bb >= 0 ? "+" : "-";
+
+    const eq =
+        `\\( y = ${mm.toFixed(3)}x ${sign} ${Math.abs(bb).toFixed(3)} \\)`;
+
+    const eqEl = document.getElementById('lineEq');
+
+    eqEl.innerHTML = eq;
+
+    if (
+        window.MathJax &&
+        MathJax.Hub &&
+        MathJax.Hub.Queue
+    ) {
+        MathJax.Hub.Queue(
+            ["Typeset", MathJax.Hub, eqEl]
+        );
+    }
+}
+
+draw();
+
+</script>
