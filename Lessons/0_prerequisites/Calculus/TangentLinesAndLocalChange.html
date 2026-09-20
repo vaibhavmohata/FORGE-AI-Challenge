@@ -1,107 +1,40 @@
-<style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tangent Lines and Local Change · F.O.R.G.E. AI Challenge</title>
+<link rel="stylesheet" href="../../../css/forge.css">
+<script src="../../../js/forge-math.js"></script>
+</head>
+<body class="wide">
 
-body{
-    font-family:Arial,sans-serif;
-    line-height:1.75;
-    color:#111827;
-    padding:24px;
-}
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../../../index.html">F.O.R.G.E. AI Challenge</a>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <span>Prerequisites</span>
+      <span>Calculus</span>
+    </nav>
+  </div>
+</header>
 
-h1,h2,h3{
-    color:#111827;
-}
+<main class="page">
 
-p{
-    margin:14px 0;
-}
+  <header class="page-header">
+    <p class="eyebrow">Prerequisites · Calculus</p>
+    <h1>Tangent Lines and Local Change</h1>
+    <p class="lede"> To begin studying calculus, we first need to understand an important geometric idea: the <strong>tangent line</strong>. </p>
+  </header>
 
-canvas{
-    border:1px solid #d1d5db;
-    background:white;
-    display:block;
-    max-width:100%;
-    border-radius:8px;
-}
-
-.math-box{
-    background:#f3f4f6;
-    padding:14px;
-    border-radius:10px;
-    margin:14px 0;
-}
-
-.info-card{
-    background:#f8fafc;
-    border:1px solid #dbeafe;
-    border-radius:12px;
-    padding:18px;
-    margin-top:18px;
-}
-
-.control-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-    gap:16px;
-    margin:20px 0;
-}
-
-input[type="text"]{
-    width:100%;
-    padding:10px;
-    font-size:15px;
-    border:1px solid #cbd5e1;
-    border-radius:8px;
-    box-sizing:border-box;
-}
-
-input[type="range"]{
-    width:100%;
-}
-
-.equation-display{
-    background:white;
-    border:1px solid #d1d5db;
-    border-radius:8px;
-    padding:14px;
-    margin-top:10px;
-    overflow-x:auto;
-    text-align:center;
-    font-size:18px;
-    min-height:60px;
-}
-
-table{
-    width:100%;
-    border-collapse:collapse;
-    margin:18px 0;
-}
-
-th,td{
-    border:1px solid #d1d5db;
-    padding:10px;
-    text-align:left;
-}
-
-th{
-    background:#f3f4f6;
-}
-
-</style>
-
-<h1>Tangent Lines and Local Change</h1>
-
-<p>
-To begin studying calculus, we first need to understand an important geometric idea:
-the <strong>tangent line</strong>.
-</p>
-
+  <section>
 <p>
 When looking at a curved graph, it may be difficult to describe how the graph is behaving at one exact point.
 A tangent line helps us zoom in locally and approximate the curve with a straight line.
 </p>
+  </section>
 
-<hr>
-
+  <section>
 <h2>1. What Is a Tangent Line?</h2>
 
 <p>
@@ -116,9 +49,9 @@ The tangent line represents this local straight-line behavior.
 <p>
 In other words, we can examine the "slope" of a continuous function at a point with a tangent line.
 </p>
+  </section>
 
-<hr>
-
+  <section>
 <h2>2. Interactive Tangent Line Explorer</h2>
 
 <p>Let's consider the polynomial</p>
@@ -197,12 +130,12 @@ value="1"
 <div class="equation-display" id="lineEq"></div>
 
 </div>
+  </section>
 
-<hr>
-
+  <section>
 <h2>3. Understanding the Graph</h2>
 
-<table>
+<div class="table-wrap"><table>
 
 <tr>
 <th>Visual Element</th>
@@ -224,7 +157,7 @@ value="1"
 <td>The exact location where the tangent line touches the graph</td>
 </tr>
 
-</table>
+</table></div>
 
 <p>
 Try moving the tangent point slider slowly across the graph.
@@ -237,6 +170,24 @@ Notice how:
 <li>Downward sections create negative slopes</li>
 <li>Flat regions produce slopes near zero</li>
 </ul>
+  </section>
+
+  <nav class="pager" aria-label="Lesson navigation">
+    <a class="pager__prev" href="../LinearAlgebra/Unit%20Quiz.html">
+      <span class="pager__label">Previous</span>
+      <span class="pager__title">Unit Quiz: Linear Algebra</span>
+    </a>
+    <a class="pager__next" href="Derivatives.html">
+      <span class="pager__label">Next</span>
+      <span class="pager__title">Derivatives and Instantaneous Rate of Change</span>
+    </a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <a href="../../../index.html">Back to course home</a>
+</footer>
 
 <script>
 
@@ -395,17 +346,14 @@ function draw(){
 
     eqEl.innerHTML = eq;
 
-    if (
-        window.MathJax &&
-        MathJax.Hub &&
-        MathJax.Hub.Queue
-    ) {
-        MathJax.Hub.Queue(
-            ["Typeset", MathJax.Hub, eqEl]
-        );
+    if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([eqEl]);
     }
 }
 
 draw();
 
 </script>
+
+</body>
+</html>

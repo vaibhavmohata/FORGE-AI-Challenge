@@ -1,17 +1,33 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>What is ML?</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is ML? · F.O.R.G.E. AI Challenge</title>
+<link rel="stylesheet" href="../../../css/forge.css">
 </head>
-<body>
+<body class="wide">
 
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../../../index.html">F.O.R.G.E. AI Challenge</a>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <span>Prerequisites</span>
+      <span>Intro to ML</span>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <header class="page-header">
+    <p class="eyebrow">Prerequisites · Intro to ML</p>
     <h1>What is ML?</h1>
+    <p class="lede">Most software operates on explicit rules written by a programmer. Machine learning is the alternative you turn to when those rules become too complex, brittle, or impossible to write manually. This lesson breaks down that core problem and introduces the fundamental components of any machine learning system: data, a model, a loss function, and an optimization loop.</p>
+  </header>
 
-    <p>Most software operates on explicit rules written by a programmer. Machine learning is the alternative you turn to when those rules become too complex, brittle, or impossible to write manually. This lesson breaks down that core problem and introduces the fundamental components of any machine learning system: data, a model, a loss function, and an optimization loop.</p>
-
-    <hr>
-
-    <h2>1. Traditional programming</h2>
+  <section>
+<h2>1. Traditional programming</h2>
     <p>In standard software engineering, you hardcode the decision logic yourself. For example, a bank might evaluate a loan application using standard conditional logic:</p>
     <pre>
 IF age &gt;= 18 AND income &gt;= 50000 AND credit_score &gt;= 650 THEN
@@ -20,10 +36,10 @@ ELSE
     deny_loan()
     </pre>
     <p>The inputs are explicit variables from a form, and the output is a binary approval or denial. Given the exact same inputs, the output will never change. This predictability is ideal when business rules are clear and static.</p>
+  </section>
 
-    <hr>
-
-    <h2>2. Where rules stop working</h2>
+  <section>
+<h2>2. Where rules stop working</h2>
 
     <h3>Spam detection</h3>
     <p>If you try to write manual rules for a spam filter, you might start with a baseline like "if the subject contains 'FREE', flag as spam." This quickly catches some junk, but it also flags legitimate emails. To fix this, you add rules for links, capitalization, sender reputation, and image structures. However, spammers continuously adapt, requiring endless new branches. The code quickly becomes unmaintainable.</p>
@@ -33,14 +49,14 @@ ELSE
 
     <h3>Image classification</h3>
     <p>Writing standard code to identify a dog from raw pixels requires translating visual concepts like "ears," "snouts," or "fur" into pixel values. This approach breaks down immediately if the dog is lying on its side, partially hidden in shadow, or captured from a distance. Rather than spelling out manual rules, a system trained on thousands of labeled photos can identify patterns across raw pixel arrays automatically.</p>
+  </section>
 
-    <hr>
-
-    <h2>3. The machine learning approach</h2>
+  <section>
+<h2>3. The machine learning approach</h2>
     <p>Instead of manually hardcoding every logical branch, you provide the system with examples consisting of inputs paired with the correct outputs. The model functions as a mathematical equation with adjustable variables, known as weights and biases. The training process systematically tweaks these variables until the model's predictions align with your examples.</p>
 
-    <table border="1" cellpadding="8" cellspacing="0" width="100%" style="border-collapse: collapse; margin: 12px 0;">
-        <tr bgcolor="#f1f5f9">
+    <div class="table-wrap"><table>
+        <tr>
             <th></th><th>Traditional programming</th><th>Machine learning</th>
         </tr>
         <tr>
@@ -58,20 +74,20 @@ ELSE
             <td>Logic is straightforward and static</td>
             <td>Patterns exist but are too complex to code manually</td>
         </tr>
-    </table>
+    </table></div>
 
     <p>A recommendation engine does not rely on hardcoded logic like "user 16 always receives basketball content." Instead, it logs user interactions—watches, skips, and rewatches—and calculates preferences across millions of historical data points. The underlying pattern resides in the data, and the model learns the weights automatically.</p>
+  </section>
 
-    <hr>
-
-    <h2>4. House size and price</h2>
+  <section>
+<h2>4. House size and price</h2>
     <p>This scatter plot demonstrates the core concept. Each point represents an individual house, with size plotted on the horizontal axis and sale price on the vertical axis. Real-world factors like neighborhood, house condition, and garage space mean the points do not line up perfectly, but the upward trend is clear.</p>
     <canvas id="houseCanvas" width="600" height="280" style="border: 1px solid #ccc; display: block; max-width: 100%; margin: 10px 0;"></canvas>
     <p>Finding the line of best fit manually would mean guessing random slope and intercept numbers. Machine learning automates this process: the algorithm tests parameters, measures the total error, adjusts the numbers, and repeats. This specific loop is known as linear regression.</p>
+  </section>
 
-    <hr>
-
-    <h2>5. The training loop</h2>
+  <section>
+<h2>5. The training loop</h2>
     <p>Supervised machine learning models rely on a consistent four-step execution cycle:</p>
     <ol>
         <li><strong>Data</strong> — Labeled historical examples (x, y).</li>
@@ -82,10 +98,10 @@ ELSE
     <p>Written compactly:</p>
     <p><strong>Data → Model → Loss → Update Loop</strong></p>
     <p>While the model architecture changes (from simple lines to neural networks), this foundational loop remains identical.</p>
+  </section>
 
-    <hr>
-
-    <h2>6. Interactive Sandbox: The Problem Setup Game</h2>
+  <section>
+<h2>6. Interactive Sandbox: The Problem Setup Game</h2>
     <p>Below is an unlabelled synthetic dataset. Adjust the hidden mathematical relationships and background noise to observe how data variance impacts pattern recognition.</p>
     <p><strong>Instructions:</strong> Use the <em>Reveal relationship</em> slider to uncover whether the underlying data points follow a linear, curved, or wave pattern. Increase the noise slider to see how structural signals become obscured. Click <em>Evaluate</em> to benchmark the dataset against a standard noise threshold.</p>
 
@@ -111,17 +127,35 @@ ELSE
             </td>
         </tr>
     </table>
+  </section>
 
-    <hr>
-
-    <h2>Recommended Learning Resources</h2>
+  <section>
+<h2>Recommended Learning Resources</h2>
     <ul>
         <li><strong>An Introduction to Statistical Learning (James et al.):</strong> A clear introduction to predictive modeling and evaluation metrics. <a href="https://www.statlearning.com/" target="_blank">statlearning.com</a></li>
         <li><strong>Google Machine Learning Crash Course — Framing:</strong> Quick modules covering labels, features, and identifying appropriate ML use cases. <a href="https://developers.google.com/machine-learning/crash-course" target="_blank">ML Crash Course</a></li>
         <li><strong>scikit-learn — Supervised learning:</strong> Documentation showing how modern libraries isolate code execution between fitting parameters and making predictions. <a href="https://scikit-learn.org/stable/supervised_learning.html" target="_blank">scikit-learn docs</a></li>
     </ul>
+  </section>
 
-    <script>
+  <nav class="pager" aria-label="Lesson navigation">
+    <a class="pager__prev" href="../Statistics/UnitQuiz.html">
+      <span class="pager__label">Previous</span>
+      <span class="pager__title">Unit Quiz: Statistics</span>
+    </a>
+    <a class="pager__next" href="LinearRegression.html">
+      <span class="pager__label">Next</span>
+      <span class="pager__title">Linear Regression and Gradient Descent</span>
+    </a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <a href="../../../index.html">Back to course home</a>
+</footer>
+
+<script>
         function drawHouseChart() {
             var c = document.getElementById('houseCanvas');
             if (!c) return;

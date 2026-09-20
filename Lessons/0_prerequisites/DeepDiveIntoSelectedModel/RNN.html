@@ -1,53 +1,40 @@
-<div class="genai-lesson-container">
-    <style>
-        /* Scoped completely under .genai-lesson-container to prevent breaking parent website themes */
-        .genai-lesson-container { 
-            line-height: 1.6; 
-            color: #1e293b; 
-            max-width: 800px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-        .genai-lesson-container h1 { color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 10px; }
-        .genai-lesson-container h2 { color: #1e3a8a; margin-top: 35px; }
-        .genai-lesson-container h3 { color: #0f172a; margin-top: 25px; }
-        .genai-lesson-container hr { border: 0; border-top: 1px solid #e2e8f0; margin: 35px 0; }
-        .genai-lesson-container code { font-family: monospace; background-color: #f1f5f9; padding: 2px 5px; border-radius: 4px; font-size: 0.9em; color: #0f172a; }
-        
-        /* Layout Modules & Visual Panels */
-        .genai-lesson-container .math-display {
-            margin: 20px 0;
-            padding: 16px 20px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            overflow-x: auto;
-            text-align: center;
-        }
-        .genai-lesson-container .highlight-box { background-color: #f8fafc; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
-        .genai-lesson-container .interactive-box { background-color: #f4faf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0; }
-        .genai-lesson-container table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        .genai-lesson-container th, .genai-lesson-container td { border: 1px solid #cbd5e1; padding: 12px; text-align: left; }
-        .genai-lesson-container th { background-color: #f1f5f9; color: #334155; }
-        .genai-lesson-container summary { cursor: pointer; color: #2563eb; font-weight: bold; margin-top: 10px; }
-        .genai-lesson-container button { padding: 8px 12px; margin: 4px 2px; border: 1px solid #cbd5e1; background: white; border-radius: 6px; cursor: pointer; font-weight: 500; color: #1e293b; }
-        .genai-lesson-container button:hover { background: #f8fafc; border-color: #94a3b8; }
-        .genai-lesson-container select { padding: 6px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; color: #1e293b; }
-        .genai-lesson-container canvas { border-radius: 6px; background: #fff; }
-    </style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recurrent Neural Networks & The Problem of Memory · F.O.R.G.E. AI Challenge</title>
+<link rel="stylesheet" href="../../../css/forge.css">
+<script src="../../../js/forge-math.js"></script>
+</head>
+<body class="wide">
 
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../../../index.html">F.O.R.G.E. AI Challenge</a>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <span>Prerequisites</span>
+      <span>Deep Dive: CNNs and RNNs</span>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <header class="page-header">
+    <p class="eyebrow">Prerequisites · Deep Dive: CNNs and RNNs</p>
     <h1>Recurrent Neural Networks & The Problem of Memory</h1>
+    <p class="lede">Up until now, we have treated machine learning data as something fundamentally static. When we built MLPs and Convolutional Networks, we fed them isolated snapshots of data: a fixed grid of pixels or a single input vector. The model would compute its output, draw its boundary, and completely wipe its slate clean for the next input.</p>
+  </header>
 
-    <p>Up until now, we have treated machine learning data as something fundamentally static. When we built MLPs and Convolutional Networks, we fed them isolated snapshots of data: a fixed grid of pixels or a single input vector. The model would compute its output, draw its boundary, and completely wipe its slate clean for the next input.</p>
-
-    <p>But many types of data are not static. The world around us is structured as continuous, evolving <strong>sequences</strong>. Think of the words you are reading right now, the sound waves of a music file, or the varying numbers of a stock index. In these formats, context is everything. The meaning of an element at step \(t\) depends entirely on what happened directly before it. To map these dependencies, computing frameworks require something new: an architectural <strong>memory</strong> footprint.</p>
+  <section>
+<p>But many types of data are not static. The world around us is structured as continuous, evolving <strong>sequences</strong>. Think of the words you are reading right now, the sound waves of a music file, or the varying numbers of a stock index. In these formats, context is everything. The meaning of an element at step \(t\) depends entirely on what happened directly before it. To map these dependencies, computing frameworks require something new: an architectural <strong>memory</strong> footprint.</p>
     
     <p>To represent this data, we introduce the <strong>Recurrent Neural Network (RNN)</strong>. Developed as the original model for time-series and language tasks, the RNN attempts to handle data streams by passing an internal, evolving "hidden state" forward across time steps. In this post, we will look at how that loop works, why context matters for sequential data, and how later models (LSTMs, Transformers) solve the same problem with different machinery.</p>
+  </section>
 
-    <hr>
-
-    <h2>1. Why Feedforward Networks Struggle with Sequences</h2>
+  <section>
+<h2>1. Why Feedforward Networks Struggle with Sequences</h2>
 
 <p>Suppose we want to predict the next word in a sentence using a standard feedforward network (MLP). If we feed the model only the current token, such as <code>"sat"</code>, the network has no information about the words that came before it. It cannot tell whether the sentence began with <code>"The fierce mountain lion..."</code> or <code>"The priceless antique vase..."</code>. Without context, many language tasks become much harder.</p>
 
@@ -67,10 +54,9 @@
 </ul>
 
 <p>The hidden state provides the model with a form of memory, allowing information from earlier parts of the sequence to influence later predictions.</p>
+  </section>
 
-
-<hr>
-
+  <section>
 <h2>2. Inside a Recurrent Cell</h2>
 
 <p>At each timestep \(t\), an RNN combines two pieces of information: the current input vector \(x_t\) and the hidden state from the previous timestep \(h_{t-1}\). The update is defined by the following equations:</p>
@@ -114,10 +100,10 @@
             </td>
         </tr>
     </table> -->
+  </section>
 
-    <hr>
-
-    <h2>3. Unrolling Time</h2>
+  <section>
+<h2>3. Unrolling Time</h2>
     <p>To train an RNN with standard optimization methods, we use a conceptual tool called <strong>unrolling</strong>. When an RNN is unrolled across a sequence of length \(T\), it becomes equivalent to a feedforward network with \(T\) layers, where each layer shares the same parameters.</p>
     
     <p>Unrolling removes the recurrent loop and lays the computation out across time. This makes it easier to see how information moves forward through a sequence and how gradients flow backward during training.</p>
@@ -126,10 +112,10 @@
         <canvas id="l8-state-flow-canvas" width="700" height="250" style="border: 1px solid #e2e8f0; display: block; width: 100%; max-width: 700px; aspect-ratio: 700 / 250;"></canvas>
     </div>
     <div id="l8-flow-caption" style="font-size: 0.88em; color: #475569; margin-bottom: 16px; text-align: center;">Green = observable input, blue = hidden memory, purple = next-step prediction.</div>
-    
-    <hr>
-    
-    <h2>4. When RNNs Dominated Sequence Modeling</h2>
+  </section>
+
+  <section>
+<h2>4. When RNNs Dominated Sequence Modeling</h2>
     <p>Before Transformers became the standard architecture, recurrent neural networks and their gated variants were the leading approach for sequence-based tasks. During the mid-2010s, they powered major advances in language and speech systems:</p>
     
     <ul>
@@ -140,10 +126,10 @@
     <li><strong>Character-Level Text Generation:</strong> Andrej Karpathy's influential post, <a href="https://karpathy.github.io/2015/05/21/rnn-effectiveness/" target="_blank">The Unreasonable Effectiveness of Recurrent Neural Networks</a>, demonstrated that even relatively simple RNNs could learn to generate text one character at a time, including code, Shakespeare-style writing, and structured documents.</li>
     
     </ul>
-    
-    <hr>
-    
-    <h2>5. The Main Limitation: Vanishing Gradients</h2>
+  </section>
+
+  <section>
+<h2>5. The Main Limitation: Vanishing Gradients</h2>
     
     <p>Despite their elegance, vanilla RNNs struggle with long-range dependencies. Training an RNN requires an algorithm called <strong>Backpropagation Through Time (BPTT)</strong>, which propagates gradients backward through every step of the unrolled sequence.</p>
     
@@ -167,10 +153,10 @@
     <!-- <p><strong>Visualizing Gradient Decay:</strong> Watch the error signals fade as they move backward through an unrolled vanilla network. The rapidly shrinking bars show why early timesteps fail to learn long-range context.</p>
     <canvas id="l8-bptt-canvas" width="560" height="180" style="border: 1px solid #e2e8f0; display: block; margin: 15px 0; max-width: 100%;"></canvas>
     <div id="l8-bptt-caption" style="font-size: 0.88em; color: #475569; margin-bottom: 25px;">Red arrows trace BPTT backward; bar height = surviving gradient magnitude at each step.</div> -->
-    
-    <hr>
-    
-    <h2>6. LSTMs and GRUs: A Better Memory Mechanism</h2>
+  </section>
+
+  <section>
+<h2>6. LSTMs and GRUs: A Better Memory Mechanism</h2>
     
     <p>To address the limitations of vanilla RNNs, researchers developed <strong>gated recurrent architectures</strong>, most notably the <strong>Long Short-Term Memory (LSTM)</strong> network and the <strong>Gated Recurrent Unit (GRU)</strong>.</p>
     
@@ -202,30 +188,30 @@
     
     <p>Here's how these approaches differ:</p>
     
-    <table>
+    <div class="table-wrap"><table>
         <thead>
-            <tr bgcolor="#f1f5f9"><th>Architecture</th><th>How Context Is Handled</th></tr>
+            <tr><th>Architecture</th><th>How Context Is Handled</th></tr>
         </thead>
         <tbody>
             <tr><td><strong>Vanilla RNN</strong></td><td>Maintains a single hidden state that is updated at every timestep. Simple, but struggles with long-range dependencies.</td></tr>
             <tr><td><strong>LSTM / GRU</strong></td><td>Uses gated memory pathways to preserve information over longer sequences, but still processes tokens one step at a time.</td></tr>
             <tr><td><strong>Transformer</strong> (Next Unit)</td><td>Uses self-attention to directly connect tokens across the sequence without relying on a recurrent loop.</td></tr>
         </tbody>
-    </table>
-    
-    <hr>
-    
-    <h2>7. From Recurrence to Attention</h2>
+    </table></div>
+  </section>
+
+  <section>
+<h2>7. From Recurrence to Attention</h2>
     
     <p>Recurrent models introduced one of the most important ideas in modern AI: <strong>next-token prediction</strong>. By training a model to predict what comes next in a sequence, we encourage it to learn patterns in language, structure, and meaning.</p>
     
     <p>However, even LSTMs face an important limitation: they process information sequentially. Before computing timestep \(t\), the model must first compute timestep \(t-1\). This dependency makes training difficult to parallelize across modern hardware.</p>
     
     <p>As datasets and model sizes grew, this sequential bottleneck became increasingly restrictive. The breakthrough came with the <strong>Transformer</strong>, which replaced recurrence with <strong>self-attention</strong>. Instead of processing tokens one at a time, Transformers allow every token to interact with every other token simultaneously, making large-scale training dramatically more efficient. We will introduce Transformers in the next module, Intro to Generative AI.</p>
-    
-    <hr>
-    
-    <h2>8. Interactive Laboratory: Comparing RNNs and LSTMs</h2>
+  </section>
+
+  <section>
+<h2>8. Interactive Laboratory: Comparing RNNs and LSTMs</h2>
     
     <p>Train a vanilla RNN or an LSTM to predict a sine wave. Adjust the BPTT window length and observe how gradient behavior changes as sequences become longer.</p>
 
@@ -275,16 +261,34 @@
         <canvas id="l8-grad" width="520" height="110" style="border: 1px solid #cbd5e1; display: block; width: 100%; max-width: 520px;"></canvas>
         <div id="l8-grad-caption" style="font-size: 0.82em; color: #64748b; margin-top: 6px;"></div>
     </div>
+  </section>
 
-    <hr>
-
-    <h2>Recommended Literature & Core Resources</h2>
+  <section>
+<h2>Recommended Literature & Core Resources</h2>
     <ul>
         <li><strong>Understanding LSTM Networks (Christopher Olah, 2015):</strong> The definitive visual guide that masterfully explains the inner math and gating loops of LSTMs. <a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank">Read post</a></li>
         <li><strong>Long Short-Term Memory (Hochreiter & Schmidhuber, 1997):</strong> The landmark research paper that introduced the LSTM architecture and solved the vanishing gradient problem. <a href="https://dl.acm.org/doi/10.1162/neco.1997.9.8.1735" target="_blank">Access Paper Registry</a></li>
     </ul>
+  </section>
 
-    <script>
+  <nav class="pager" aria-label="Lesson navigation">
+    <a class="pager__prev" href="CNN.html">
+      <span class="pager__label">Previous</span>
+      <span class="pager__title">Convolutional Neural Networks</span>
+    </a>
+    <a class="pager__next" href="Review.html">
+      <span class="pager__label">Next</span>
+      <span class="pager__title">Review: Core Concepts and Structural Patterns</span>
+    </a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <a href="../../../index.html">Back to course home</a>
+</footer>
+
+<script>
     (function() {
         function on(id, evt, fn) {
             const el = document.getElementById(id);
@@ -969,11 +973,13 @@
     })();
     </script>
 
-    <script>
-    document.querySelectorAll('.genai-lesson-container details').forEach(function(el) {
+<script>
+    document.querySelectorAll('details').forEach(function(el) {
         el.addEventListener('toggle', function() {
             if (el.open && window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([el]);
         });
     });
     </script>
-</div>
+
+</body>
+</html>

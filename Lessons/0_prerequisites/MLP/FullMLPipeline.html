@@ -1,20 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Prerequisites: Lesson 6 - The Full ML Pipeline</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prerequisites: Lesson 6 - The Full ML Pipeline · F.O.R.G.E. AI Challenge</title>
+<link rel="stylesheet" href="../../../css/forge.css">
+<script src="../../../js/forge-math.js"></script>
 </head>
-<body>
+<body class="wide">
 
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../../../index.html">F.O.R.G.E. AI Challenge</a>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <span>Prerequisites</span>
+      <span>Multi-Layer Perceptrons</span>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <header class="page-header">
+    <p class="eyebrow">Prerequisites · Multi-Layer Perceptrons</p>
     <h1>Prerequisites: Lesson 6 - The Full ML Pipeline</h1>
+    <p class="lede">Lesson 5 detailed the mechanics of optimization over a <b>multi-layer perceptron</b> via forward propagation and backpropagation steps. However, optimizing a model architecture in isolation is insufficient for production. Engineering a reliable machine learning system requires nesting the network inside a repeatable engineering pipeline: data ingestion, preprocessing, partitioning, training, validation, and testing. This lesson maps out these operational phases, exploring the standard 70/15/15 cross-validation split, feature scaling, and regularization techniques designed to bound generalization error over high-capacity models.</p>
+  </header>
 
-    <p>Lesson 5 detailed the mechanics of optimization over a <b>multi-layer perceptron</b> via forward propagation and backpropagation steps. However, optimizing a model architecture in isolation is insufficient for production. Engineering a reliable machine learning system requires nesting the network inside a repeatable engineering pipeline: data ingestion, preprocessing, partitioning, training, validation, and testing. This lesson maps out these operational phases, exploring the standard 70/15/15 cross-validation split, feature scaling, and regularization techniques designed to bound generalization error over high-capacity models.</p>
-
-    <hr>
-
-    <h2>1. From Raw Data to Feature Vectors</h2>
+  <section>
+<h2>1. From Raw Data to Feature Vectors</h2>
     <p>
 Models only understand numbers, so we convert raw data into <b>feature vectors</b>.
 </p>
@@ -38,10 +52,10 @@ Models only understand numbers, so we convert raw data into <b>feature vectors</
 <p>
 Important: Never use test data during training or preprocessing.
 </p>
+  </section>
 
-    <hr>
-
-    <h2>2. Train / Validation / Test Split</h2>
+  <section>
+<h2>2. Train / Validation / Test Split</h2>
 
     <p>We partition our input datasets three seperate sections. For most datasets, engineers widely implement a <b>70% training / 15% validation / 15% test</b> split:</p>
 
@@ -54,10 +68,10 @@ Important: Never use test data during training or preprocessing.
     <p>
     If we accidentally use test data during training, we get <b>data leakage</b>, which makes results look better than they really are.
     </p>
+  </section>
 
-    <hr>
-
-    <h2>3. Feature Normalization and Gradient Scaling</h2>
+  <section>
+<h2>3. Feature Normalization and Gradient Scaling</h2>
     <!-- <p>When input features operate on disparate numeric intervals—such as pixel channels bounded by $[0, 255]$ placed alongside continuous indicators bounded by $[0, 1]$—the calculated loss gradients become asymmetric, favoring high-magnitude variables. Consequently, the effective parameter step size becomes scale-dependent, accelerating optimization along specific feature dimensions while stalls occur across others.</p>
     <p><b>Z-score standardization</b> explicitly rescales independent feature vectors to zero mean and unit variance:</p>
     <p><strong>x_norm = (x − μ) / σ</strong></p>
@@ -91,10 +105,10 @@ Important: Never use test data during training or preprocessing.
     <p>
     For example, in a real estate model with 13 features, one feature might be the number of rooms (ranging from 3 to 9), while another might be local tax values (ranging from 200 to 700). Without scaling, the larger-valued feature would dominate learning. Standardization ensures both features contribute fairly to training.
     </p>
+  </section>
 
-    <hr>
-
-    <h2>4. Overfitting Dynamics and Learning Curves</h2>
+  <section>
+<h2>4. Overfitting Dynamics and Learning Curves</h2>
     <p><b>Overfitting</b> defines a state where a machine learning model fits very well to the training set but doesn't do so well on the validation set. This can happen because the model learnt the noise in the training set instead of understanding the actual underlying data distribution. This divergence can be easily seen when inspecting <b>learning curves</b>—plots tracking training and validation error metrics across training:</p>
     <ul>
         <li><b>Convergent fit:</b> Training and validation error metrics decline together, stabilizing near an acceptable loss floor.</li>
@@ -114,10 +128,10 @@ Important: Never use test data during training or preprocessing.
             Machine Learning: How to Prevent Overfitting
         </a>
     </p>
+  </section>
 
-    <hr>
-
-    <h2>5. Regularization</h2>
+  <section>
+<h2>5. Regularization</h2>
   <h3> L2 Regularization </h3>
 
 <p>Generalization error can be reduced by adding mathematical constraints that limit the capacity of the model’s individual weights.</p>
@@ -135,12 +149,10 @@ Important: Never use test data during training or preprocessing.
 <p>The probablity with which we turn off neuron (or similarly the expected fraction of neurons which are turned off) \(p\) is called the <b>dropout rate</b>. For example, if \(p = 0.5\), then each neuron has a 50% chance of being temporarily turned off during a training step.</p>
 
 <p>Because different neurons are removed at random each time, the network cannot rely too heavily on any single neuron. Instead, it must learn multiple ways to represent useful patterns in the data. This makes the model more robust and helps reduce overfitting. Note that dropout is only used during training. During inference (when making predictions), all neurons remain active so the full network can be used.</p>
+  </section>
 
-<hr>
-  
-
-
-    <!-- <h2>6. Learning Rate Dynamics and Convergence Stability</h2>
+  <section>
+<!-- <h2>6. Learning Rate Dynamics and Convergence Stability</h2>
     <p>The scalar learning rate hyperparameter $\alpha$ regulates gradient step sizing during weight updates: <strong>θ ← θ − α ∇L</strong>. This parameter acts on both normalization layers and regularization loops to dictate system convergence stability.</p>
     <ul>
         <li><b>High rates (α ≈ 0.5+):</b> The optimization vector overshoots cost minima, triggering unstable loss oscillations or catastrophic gradient divergence. The tracking metrics oscillate unevenly instead of descending smoothly.</li>
@@ -149,8 +161,10 @@ Important: Never use test data during training or preprocessing.
     </ul>
     <p>Adaptive optimization algorithms such as Adam or RMSprop adjust the learning rate dynamically per parameter to accommodate heterogeneous feature profiles. However, these frameworks still show faster convergence when processing pre-standardized inputs. Hyperparameter cross-validation must be executed over the validation split, tuning $\alpha$ to achieve the lowest validation error floor rather than optimizing for training performance alone.</p>
     <p>Optimizer selection (e.g., standard SGD, Momentum, or Adam) represents a standalone hyperparameter evaluated on validation splits. Adaptive optimizers like Adam show rapid early convergence using baseline parameters, whereas tuned Stochastic Gradient Descent (SGD) with momentum can yield superior generalization scaling across large feature domains. The operational principle remains constant: optimize over the training split, evaluate via validation tracking, and verify once against the test partition.</p> -->
+  </section>
 
-    <h2>6. Learning Rate Dynamics and Convergence Stability</h2>
+  <section>
+<h2>6. Learning Rate Dynamics and Convergence Stability</h2>
 
 <p>The scalar learning rate hyperparameter \(\alpha\) controls the size of each gradient update during training: <strong>\((\theta \leftarrow \theta - \alpha \nabla L)\)</strong>. This parameter affects both normalization layers and regularization behavior, and plays a key role in determining whether training converges stably.</p>
 
@@ -175,11 +189,10 @@ Important: Never use test data during training or preprocessing.
 <p>Adaptive optimizers such as Adam or RMSprop adjust the learning rate automatically for each parameter, helping handle features with different scales. However, they still perform better when inputs are pre-standardized. In practice, the learning rate \(\alpha\) should be tuned using the validation set to minimize validation error, rather than focusing only on training loss.</p>
 
 <p>Optimizer choice (e.g., SGD, Momentum, or Adam) is also a separate hyperparameter selected using validation performance. Adam often converges faster early in training with default settings, while carefully tuned SGD with momentum can achieve better generalization on large-scale problems. The general workflow remains the same: train on the training set, tune using validation, and evaluate once on the test set.</p>
+  </section>
 
-
-    <hr>
-
-    <h2>7. Interactive Sandbox: Training Pipeline Dashboard</h2>
+  <section>
+<h2>7. Interactive Sandbox: Training Pipeline Dashboard</h2>
 
 <p>This monitoring panel runs a 256\(\rightarrow\)40\(\rightarrow\)10 MLP on a synthetic digit dataset and executes the full machine learning pipeline: data splitting, optional z-score normalization, regularized optimization steps, and real-time learning curves. The training data includes hidden correlation shortcuts that are not present in the validation and test sets, showing how random correlations can cause poor generalization.</p>
 
@@ -223,14 +236,33 @@ Important: Never use test data during training or preprocessing.
             </td>
         </tr>
     </table>
+  </section>
 
-    <hr>
-
-    <h2>Recommended Learning Resources</h2>
+  <section>
+<h2>Recommended Learning Resources</h2>
     <ul>
         <li><strong>Scikit-learn Preprocessing Reference (scikit-learn developers):</strong> Technical documentation for data transformations, feature transformations in Python. <a href="https://scikit-learn.org/stable/modules/preprocessing.html" target="_blank">Preprocessing documentation</a></li>
         <li><strong>Deep Learning, Chapter 7 — Regularization (Goodfellow, Bengio, Courville):</strong> Deep theoretical analysis covering various way we can use regularization for our models. <a href="https://www.deeplearningbook.org/contents/regularization.html" target="_blank">Chapter 7 online</a></li>
     </ul>
+  </section>
+
+  <nav class="pager" aria-label="Lesson navigation">
+    <a class="pager__prev" href="MLP.html">
+      <span class="pager__label">Previous</span>
+      <span class="pager__title">Multi-Layer Perceptrons and Backpropagation</span>
+    </a>
+    <a class="pager__next" href="UnitQuiz.html">
+      <span class="pager__label">Next</span>
+      <span class="pager__title">Unit Quiz: Multi-Layer Perceptrons</span>
+    </a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <a href="../../../index.html">Back to course home</a>
+</footer>
+
 <script>
 (function() {
     const HIDDEN = 40;

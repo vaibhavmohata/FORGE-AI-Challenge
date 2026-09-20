@@ -1,17 +1,34 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Multi-Layer Perceptrons and Backpropagation</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Layer Perceptrons and Backpropagation · F.O.R.G.E. AI Challenge</title>
+<link rel="stylesheet" href="../../../css/forge.css">
+<script src="../../../js/forge-math.js"></script>
 </head>
-<body>
+<body class="wide">
 
+<header class="site-header">
+  <div class="site-header__inner">
+    <a class="brand" href="../../../index.html">F.O.R.G.E. AI Challenge</a>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <span>Prerequisites</span>
+      <span>Multi-Layer Perceptrons</span>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <header class="page-header">
+    <p class="eyebrow">Prerequisites · Multi-Layer Perceptrons</p>
     <h1>Multi-Layer Perceptrons and Backpropagation</h1>
+    <p class="lede">Lesson 4 demonstrated that mapping non-linear spaces like the XOR distribution requires isolating intermediate feature coordinates. A <b>multi-layer perceptron (MLP)</b> generalizes this architecture by stacking multiple computational layers separated by non-linear activation functions, utilizing the <b>backpropagation</b> algorithm to optimize all parameter weights concurrently.</p>
+  </header>
 
-    <p>Lesson 4 demonstrated that mapping non-linear spaces like the XOR distribution requires isolating intermediate feature coordinates. A <b>multi-layer perceptron (MLP)</b> generalizes this architecture by stacking multiple computational layers separated by non-linear activation functions, utilizing the <b>backpropagation</b> algorithm to optimize all parameter weights concurrently.</p>
-
-    <hr>
-
-    <h2>1. MLP topology</h2>
+  <section>
+<h2>1. MLP topology</h2>
     <p>An MLP is organized into three distinct structural zones:</p>
     <ul>
         <li><strong>Input layer</strong> — Comprises one node per feature dimension (e.g., 256 nodes to ingest a flattened \(16 \times 16\) grayscale pixel array).</li>
@@ -36,10 +53,10 @@
             Multilayer Perceptron
         </a>
     </p>
+  </section>
 
-    <hr>
-
-    <h2>2. The forward propagation pass</h2>
+  <section>
+<h2>2. The forward propagation pass</h2>
     <p>Data propagates sequentially through the network graph. Each layer computes an affine transformation followed by an element-wise non-linear activation:</p>
     <p align="center">
         \[z^{(l)} = W^{(l)} a^{(l-1)} + b^{(l)}\]
@@ -53,9 +70,10 @@
     </ul>
     <p>The final output layer typically applies an activation function to normalize raw logit scores into a valid multinomial probability distribution that integrates to 1. The forward pass is purely deterministic matrix arithmetic; parameter optimization does not occur until an error metric is evaluated and gradients flow in reverse.</p>
 <p>A <b>fully connected layer</b> (also called a <b>dense layer</b>) is the basic computation unit in an MLP. It means every neuron in the layer receives input from every neuron in the previous layer. The term “dense” refers to this all-to-all connection pattern, where no input feature is ignored and all features contribute to every output neuron through learned weights.</p>
-    <hr>
+  </section>
 
-    <h2>3. Backpropagation mechanics</h2>
+  <section>
+<h2>3. Backpropagation mechanics</h2>
   <p>A single full iteration combines one forward evaluation pass with one reverse propagation pass to derive the comprehensive gradient matrix for the entire network. Computing these updates across random mini-batches iteratively minimizes the objective function over time.</p>
     <p><b>Backpropagation</b> evaluates the partial derivatives of the loss function \(\frac{\partial L}{\partial w}\) for every weight parameter by systematically chaining derivatives from the output layer back to the input vector. Once the forward pass quantifies the error value \(L\), the gradient at the terminal nodes is established, and each antecedent layer receives an error signal proportional to its contribution to the final variance.</p>
     <p align="center">
@@ -67,19 +85,20 @@
         \[w \leftarrow w - \alpha \frac{\partial L}{\partial w}\]
     </p>
   <p>Remeber \(\alpha\) here is the learning rate for our optimization.</p>
-    <hr>
+  </section>
 
-    <h2>4. The vanishing gradient constraint</h2>
+  <section>
+<h2>4. The vanishing gradient constraint</h2>
     <p>Utilizing sigmoid activations introduces distinct mathematical limitations during backpropagation, as the derivative of the sigmoid function caps at \(\sigma'(z) \le 0.25\). Propagating errors backward through an architecture containing \(L\) hidden layers scales the gradient signal down by a maximum factor of \(0.25^L\):</p>
     <p align="center">
         \[\sigma'(z) = \sigma(z)(1 - \sigma(z)) \le 0.25\]
     </p>
     <p>In a 6-layer sigmoid architecture, this dampening effect factors to \(0.25^6 \approx 0.00024\), meaning less than 0.03% of the terminal error gradient reaches the foundational weight parameters. Consequently, these early-stage parameters remain largely unoptimized while only the terminal layers converge. This behavior describes the <b>vanishing gradient problem</b>, which historically restricted the training optimization of deep sigmoid networks.</p>
     <canvas id="l5-vanishCanvas" width="360" height="150" style="border: 1px solid #ccc; display: block; margin: 10px 0;"></canvas>
+  </section>
 
-    <hr>
-
-    <!-- <h2>5. Piecewise linear activation functions</h2>
+  <section>
+<!-- <h2>5. Piecewise linear activation functions</h2>
     <p>The Rectified Linear Unit (<b>ReLU</b>) mitigates gradient saturation by passing positive inputs directly through unchanged while mapping all negative inputs to zero:</p>
     <p align="center">
         $$\text{ReLU}(x) = \max(0, x)$$
@@ -103,8 +122,10 @@
     </table> -->
 
     <!-- <hr> -->
+  </section>
 
-    <h2>5. Interactive Sandbox: Train an MLP on 16×16 Digits</h2>
+  <section>
+<h2>5. Interactive Sandbox: Train an MLP on 16×16 Digits</h2>
     <p>Input pixel configurations on the coordinate canvas, define hidden layer depths and node counts, isolate an activation profile, and execute optimization routines. The sandbox performs forward calculations, computes categorical cross-entropy loss, and runs backpropagation operations natively within the browser environment using a synthetic digit array.</p>
 
     <table border="1" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border: 1px solid #ccc;">
@@ -150,17 +171,35 @@
             </td>
         </tr>
     </table>
+  </section>
 
-    <hr>
-
-    <h2>Recommended Learning Resources</h2>
+  <section>
+<h2>Recommended Learning Resources</h2>
     <ul>
         <li><strong>Backpropagation Derivations (Michael Nielsen):</strong> Algorithmic matrix notation breakdowns detailing localized partial derivative paths across network layers. <a href="http://neuralnetworksanddeeplearning.com/chap2.html" target="_blank">Chapter 2</a></li>
         <li><strong>Vanishing Gradients Analysis (Stanford CS231n):</strong> Evaluation notes exploring mathematical decay functions within deep saturation fields. <a href="https://cs231n.github.io/neural-networks-3/" target="_blank">CS231n Notes</a></li>
         <li><strong>Rectified Linear Units (Nair &amp; Hinton, 2010):</strong> Foundational research demonstrating optimization performance improvements enabled by non-saturating activation profiles. <a href="https://www.cs.toronto.edu/~hinton/absps/reluICML.pdf" target="_blank">ReLU Paper</a></li>
     </ul>
+  </section>
 
-    <script>
+  <nav class="pager" aria-label="Lesson navigation">
+    <a class="pager__prev" href="Perceptron.html">
+      <span class="pager__label">Previous</span>
+      <span class="pager__title">Perceptrons and Hidden Layers</span>
+    </a>
+    <a class="pager__next" href="FullMLPipeline.html">
+      <span class="pager__label">Next</span>
+      <span class="pager__title">The Full ML Pipeline</span>
+    </a>
+  </nav>
+
+</main>
+
+<footer class="site-footer">
+  <a href="../../../index.html">Back to course home</a>
+</footer>
+
+<script>
         // function l5DrawArchDiagram() {
         //     let canvas = document.getElementById('l5-archCanvas');
         //     if (!canvas) return;
