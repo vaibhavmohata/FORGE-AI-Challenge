@@ -85,7 +85,7 @@
 
     <h1>How Do LLMs Actually Learn?</h1>
 
-    <p>ChatGPT feels like magic the first time you use it. But underneath, large language models (LLMs) are trained with the same core idea you already saw in Week 1: define a <strong>loss function</strong>, measure how wrong the model is, and use <strong>gradient descent</strong> to adjust parameters and reduce that loss.</p>
+    <p>ChatGPT feels like magic the first time you use it. But underneath, large language models (LLMs) are trained with the same core idea you already saw earlier: define a <strong>loss function</strong>, measure how wrong the model is, and use <strong>gradient descent</strong> to adjust parameters and reduce that loss.</p>
 
     <p>The difference is scale. Instead of fitting a line to a few hundred housing prices, an LLM reads enormous amounts of text and adjusts <strong>billions</strong> of weights so it gets better at one deceptively simple task: <strong>predict the next token</strong>.</p>
 
@@ -109,12 +109,12 @@
     </div>
 
     <div class="eq-panel">
-        Given tokens <var>x</var><sub>1</sub>, …, <var>x</var><sub>t−1</sub>, the model outputs a probability for every possible next token.<br>
+        Given tokens \(x_1, x_2, x_{t - 1}\), the model outputs a probability for every possible next token.<br>
         Loss = how far those probabilities are from the true next token (cross-entropy).<br>
         Update weights with gradient descent. Repeat.
     </div>
 
-    <p>Example: for the phrase <span class="prompt-box" style="display:inline-block;margin:0;">The cat sat on the</span> the model might assign high probability to <em>mat</em>, moderate probability to <em>floor</em>, and low probability to <em>airplane</em>. When it picks the wrong token, the loss is high; backpropagation adjusts attention weights, embedding tables, and feed-forward layers so similar contexts do better next time.</p>
+    <p>Example: for the phrase "The cat sat on the" the model might assign high probability to <em>mat</em>, moderate probability to <em>floor</em>, and low probability to <em>airplane</em>. When it picks the wrong token, the loss is high; backpropagation adjusts attention weights, embedding tables, and feed-forward layers so similar contexts do better next time.</p>
 
     <p>Everything else — reasoning-like answers, translation, coding help — emerges from getting very good at this one prediction game across diverse text.</p>
 
@@ -310,7 +310,7 @@
 
     <hr>
 
-    <h2>8. Reflect on the Pipeline</h2>
+    <!--<h2>8. Reflect on the Pipeline</h2>
     <div class="interactive-box">
         <label class="reflect-label" for="tt-reflect-1">If you were training a customer service chatbot, what kind of fine-tuning examples would you want to collect?</label>
         <textarea class="reflect-input" id="tt-reflect-1" placeholder="Think about tone, refund policies, escalation paths, multilingual support…"></textarea>
@@ -338,7 +338,7 @@
         <li><strong>Scaling laws</strong> explain why bigger models and more tokens keep winning benchmarks — until cost and data limits bite.</li>
     </ul>
 
-    <hr>
+    <hr>-->
 
     <h2>Recommended Reading</h2>
     <ul>

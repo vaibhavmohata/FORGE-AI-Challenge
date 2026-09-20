@@ -121,7 +121,7 @@
 
     <h1>Context Windows: How Much Can a Model Actually "See"?</h1>
 
-    <p>In Week 2 you learned that transformers use <strong>attention</strong> so every token can look at every other token in the input. That mechanism is powerful — but it only works inside a fixed boundary called the <strong>context window</strong>.</p>
+    <p>We have already learned that transformers use <strong>attention</strong> so every token can look at every other token in the input. That mechanism is powerful — but it only works inside a fixed boundary called the <strong>context window</strong>.</p>
 
     <p>This is not an abstract detail. The moment you paste a long PDF, a big codebase, or months of chat history into an API call, you hit this limit. Understanding context windows is one of the first practical constraints you will run into in your assignments and in production apps.</p>
 
@@ -221,11 +221,11 @@
         <li><strong>Summarization middleware:</strong> your app compresses old messages before sending — quality depends on what you kept</li>
     </ul>
 
-    <p>Practical impact: a model cannot "remember" an entire long conversation, book, or codebase if it exceeds the window. That is why production systems <strong>chunk</strong> documents, <strong>summarize</strong> old chat turns, or use <strong>retrieval</strong> (RAG) to pull in only relevant passages.</p>
+    <p>Practical impact: a model cannot "remember" an entire long conversation, book, or codebase if it exceeds the window. That is why production systems <strong>chunk</strong> documents, <strong>summarize</strong> old chat turns, or <strong>retrieve</strong> only relevant passages that it needs.</p>
 
-    <div class="highlight-box">
+    <!--<div class="highlight-box">
         <strong>Assignment preview:</strong> If you paste 200 pages into one prompt and the model "misses" facts from page 3, the model is not being careless — those tokens may simply not be in context anymore.
-    </div>
+    </div>-->
 
     <hr>
 
@@ -291,7 +291,7 @@
         </div>
     </div>
 
-    <h3>Context window sizes across popular models</h3>
+    <!--<h3>Context window sizes across popular models</h3>
     <p class="footnote">Snapshot as of mid-2026. Vendors update limits frequently — check documentation before building. <strong>Advertised max ≠ guaranteed quality</strong> at the upper bound.</p>
     <table>
         <thead>
@@ -307,7 +307,7 @@
             <tr><td>GPT-4 (2023 reference)</td><td>8K / 32K / 128K</td><td>Illustrates how fast limits grew in two years</td></tr>
             <tr><td>GPT-3.5-turbo (legacy)</td><td>4,096–16,384 tokens</td><td>Many course examples and older tutorials assume 4K</td></tr>
         </tbody>
-    </table>
+    </table>-->
 
     <hr>
 
@@ -338,12 +338,12 @@
         <p style="margin-top:18px;font-weight:600;font-size:0.92em;">Compare against all common limits:</p>
         <div id="cw-all-limits"></div>
 
-        <p class="footnote">This is an estimate, not an exact tokenizer count. Real APIs use model-specific BPE tables (see Week 2). Code and non-English text can differ by 20–40%.</p>
+        <p class="footnote">This is an estimate, not an exact tokenizer count.</p>
     </div>
 
     <hr>
 
-    <h2>7. Reflect on Context Limits</h2>
+    <!--<h2>7. Reflect on Context Limits</h2>
     <div class="interactive-box">
         <label class="reflect-label" for="cw-reflect-1">You want to build a chatbot that remembers your entire 3-month conversation history. What's the problem with just cramming everything into the context window every time?</label>
         <textarea class="reflect-input" id="cw-reflect-1" placeholder="Think about token growth, cost, latency, truncation, and whether old messages still fit…"></textarea>
@@ -371,7 +371,7 @@
         <li>Production apps <strong>manage context</strong> — chunk, summarize, retrieve — instead of blindly pasting everything.</li>
     </ul>
 
-    <hr>
+    <hr>-->
 
     <h2>Recommended Reading</h2>
     <ul>

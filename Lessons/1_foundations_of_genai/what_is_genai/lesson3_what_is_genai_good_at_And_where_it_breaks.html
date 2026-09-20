@@ -39,19 +39,6 @@
     <p>Source code is highly structured. Models trained on repositories learn syntax, idioms, and common bug fixes.</p>
     <p>Example: a comment <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">// sort this array ascending</span> above incomplete code → a plausible completion using <span style="font-family: monospace; background-color: #eee; padding: 2px 4px;">.sort()</span> or a sorting algorithm.</p>
 
-    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
-        <tr>
-            <td>
-                <h3>Check Your Knowledge: Strengths</h3>
-                <p><strong>Question:</strong> A team needs five different taglines for a product launch. Is this a good GenAI use case?</p>
-                <details>
-                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
-                    <p style="margin-top: 5px;">Yes. Brainstorming many stylistic variations is a core strength. Human review still selects the final tagline.</p>
-                </details>
-            </td>
-        </tr>
-    </table>
-
     <hr>
 
     <h2>2. Where GenAI Struggles or Breaks</h2>
@@ -87,19 +74,6 @@
     <h3>Hallucination</h3>
     <p>The model generates text that <i>looks</i> like a correct answer — citations, phone numbers, ISBNs — with no mechanism to verify truth.</p>
     <p>Example: "What is the phone number of John Smith in Austin?" → a confident 10-digit number that is fabricated.</p>
-
-    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
-        <tr>
-            <td>
-                <h3>Check Your Knowledge: Failures</h3>
-                <p><strong>Question:</strong> A student asks ChatGPT to verify their tax return before filing. Why is this risky?</p>
-                <details>
-                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
-                    <p style="margin-top: 5px;">Arithmetic errors, outdated rules, and hallucinated citations are all possible. Tax logic requires verified computation and current law — pair GenAI with a calculator and a qualified professional, not replace them.</p>
-                </details>
-            </td>
-        </tr>
-    </table>
 
     <hr>
 
@@ -246,19 +220,6 @@
         <tr><td>4</td><td>All birds can fly. Penguins are birds. Can penguins fly?</td><td>❌ Often confused — mixes "has feathers" with "can fly," contradicts step 1 premise or hallucinates exceptions</td></tr>
     </table>
 
-    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc;">
-        <tr>
-            <td>
-                <h3>Check Your Knowledge: Case Studies</h3>
-                <p><strong>Question:</strong> A model returns a perfectly formatted legal citation that does not exist in any database. What failure mode is this?</p>
-                <details>
-                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
-                    <p style="margin-top: 5px;">Hallucination. The model generated text that matches the <em>pattern</em> of a citation without retrieving a real source.</p>
-                </details>
-            </td>
-        </tr>
-    </table>
-
     <hr>
 
     <h2>7. Interactive Sandbox: GenAI Strengths &amp; Failures Gallery</h2>
@@ -343,36 +304,6 @@
         </li>
         <li>What is one thing ChatGPT should <b>never</b> do without human experts and verified tools? (Common answers: diagnosis, legal advice, unsupervised financial decisions.)</li>
     </ol>
-
-    <h3>Reflection prompts</h3>
-    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f8fafc" width="100%" style="border-collapse: collapse; border: 1px solid #cbd5e1;">
-        <tr><td>
-            <p><strong>What should you NOT use GenAI for?</strong></p>
-            <p style="color:#64748b;font-size:0.9em;">Hint: exact computation, verified citations, high-stakes decisions without review, real-time facts after training cutoff.</p>
-            <p><strong>What would you use it for?</strong></p>
-            <p style="color:#64748b;font-size:0.9em;">Hint: drafting, brainstorming, rewriting, code scaffolding, learning explanations (with verification).</p>
-            <p><strong>What would you combine it with to fix limitations?</strong></p>
-            <ul style="color:#64748b;font-size:0.9em;">
-                <li>Math → calculator or symbolic solver</li>
-                <li>Facts → search engine or database retrieval (RAG)</li>
-                <li>Code → unit tests and linters</li>
-                <li>Medical / legal → licensed professionals</li>
-            </ul>
-        </td></tr>
-    </table>
-
-    <table border="1" cellpadding="10" cellspacing="0" bgcolor="#f4faf4" width="100%" style="border-collapse: collapse; border: 1px solid #ccc; margin-top: 12px;">
-        <tr>
-            <td>
-                <h3>Check Your Knowledge: Responsible Use</h3>
-                <p><strong>Question:</strong> A developer uses an LLM to generate SQL queries against a production database with no human review. Name two failure modes that make this dangerous.</p>
-                <details>
-                    <summary style="cursor: pointer; color: blue;"><strong>Click to reveal answer</strong></summary>
-                    <p style="margin-top: 5px;">(1) Hallucinated table or column names → runtime errors or wrong queries. (2) Logic errors in JOINs or WHERE clauses → data leaks or destructive DELETE/UPDATE. Always validate SQL against schema and run on staging first.</p>
-                </details>
-            </td>
-        </tr>
-    </table>
 
     <hr>
 

@@ -125,7 +125,7 @@
         <tbody>
             <tr>
                 <td><strong>Context</strong></td>
-                <td>Prompts stay under a few pages; you RAG/summarize long sources</td>
+                <td>Prompts stay under a few pages; you summarize long sources</td>
                 <td>You truly need full-document reasoning in one shot</td>
             </tr>
             <tr>
@@ -165,7 +165,7 @@
         <li>You lack enough high-quality labeled examples (rough rule: hundreds to thousands for meaningful SFT, not five examples)</li>
     </ul>
 
-    <figure class="diagram-wrap">
+    <!--<figure class="diagram-wrap">
         <svg viewBox="0 0 620 420" role="img" aria-label="Decision tree for whether to fine-tune a language model">
             <defs>
                 <marker id="dt-arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
@@ -212,6 +212,80 @@
             <text x="310" y="380" text-anchor="middle" font-size="10" font-weight="600">Always: pick model size for context + latency + cost (Lessons 2 &amp; 3)</text>
             <text x="310" y="394" text-anchor="middle" font-size="9" fill="#64748b">Measure on your task — don't guess from parameter count alone</text>
         </svg>
+        <figcaption>Decision tree: prompt-first, fine-tune only when you have a narrow gap and enough data. Model size is a separate axis.</figcaption>
+    </figure>-->
+  
+  <figure class="diagram-wrap">
+        <svg viewBox="0 0 720 460" role="img" aria-label="Decision tree for whether to fine-tune a language model">
+    <defs>
+        <marker id="dt-arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#64748b"/>
+        </marker>
+    </defs>
+
+    <!-- Root decision -->
+    <rect x="260" y="12" width="200" height="44" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="360" y="32" text-anchor="middle" font-size="11" font-weight="600">Does a general model</text>
+    <text x="360" y="46" text-anchor="middle" font-size="11" font-weight="600">pass your evals with prompts?</text>
+
+    <!-- Yes branch -->
+    <line x1="460" y1="34" x2="570" y2="34" stroke="#64748b" marker-end="url(#dt-arr)"/>
+    <text x="505" y="24" font-size="9" fill="#16a34a" font-weight="600">Yes</text>
+
+    <rect x="540" y="16" width="150" height="36" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="615" y="38" text-anchor="middle" font-size="10" font-weight="600">Use base / API model</text>
+
+    <!-- No branch -->
+    <line x1="360" y1="56" x2="360" y2="100" stroke="#64748b" marker-end="url(#dt-arr)"/>
+    <text x="378" y="84" font-size="9" fill="#dc2626" font-weight="600">No</text>
+
+    <!-- Style / jargon decision -->
+    <rect x="270" y="100" width="180" height="40" rx="8" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="360" y="118" text-anchor="middle" font-size="10" font-weight="600">Need fixed style / format</text>
+    <text x="360" y="130" text-anchor="middle" font-size="10" font-weight="600">or domain jargon?</text>
+
+    <!-- No branch -->
+    <line x1="270" y1="120" x2="120" y2="120" stroke="#64748b"/>
+    <line x1="120" y1="120" x2="120" y2="250" stroke="#64748b" marker-end="url(#dt-arr)"/>
+    <text x="132" y="185" font-size="9" fill="#64748b" font-weight="600">No</text>
+
+    <rect x="30" y="250" width="180" height="40" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="120" y="268" text-anchor="middle" font-size="10" font-weight="600">Try bigger model,</text>
+    <text x="120" y="282" text-anchor="middle" font-size="10" font-weight="600">or better prompts</text>
+
+    <!-- Yes branch -->
+    <line x1="360" y1="140" x2="360" y2="190" stroke="#64748b" marker-end="url(#dt-arr)"/>
+    <text x="378" y="172" font-size="9" fill="#16a34a" font-weight="600">Yes</text>
+
+    <!-- Data decision -->
+    <rect x="270" y="190" width="180" height="40" rx="8" fill="#f1f5f9" stroke="#94a3b8"/>
+    <text x="360" y="208" text-anchor="middle" font-size="10" font-weight="600">Enough quality</text>
+    <text x="360" y="220" text-anchor="middle" font-size="10" font-weight="600">training examples?</text>
+
+    <!-- No -> collect data -->
+    <line x1="450" y1="210" x2="580" y2="210" stroke="#64748b" marker-end="url(#dt-arr)"/>
+    <text x="500" y="198" font-size="9" fill="#dc2626" font-weight="600">No</text>
+
+    <rect x="580" y="190" width="120" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+    <text x="640" y="214" text-anchor="middle" font-size="10" font-weight="600">Collect data</text>
+
+    <!-- Yes -> fine tune -->
+    <line x1="360" y1="230" x2="360" y2="300" stroke="#64748b" marker-end="url(#dt-arr)"/>
+    <text x="378" y="270" font-size="9" fill="#16a34a" font-weight="600">Yes</text>
+
+    <rect x="270" y="300" width="180" height="40" rx="8" fill="#fce7f3" stroke="#db2777"/>
+    <text x="360" y="318" text-anchor="middle" font-size="10" font-weight="600">Fine-tune + track</text>
+    <text x="360" y="332" text-anchor="middle" font-size="10" font-weight="600">experiments in W&amp;B</text>
+
+    <!-- Footer note -->
+    <rect x="170" y="390" width="380" height="44" rx="8" fill="#f0fdf4" stroke="#16a34a"/>
+    <text x="360" y="410" text-anchor="middle" font-size="10" font-weight="600">
+        Always: pick model size for context + latency + cost (Lessons 2 &amp; 3)
+    </text>
+    <text x="360" y="424" text-anchor="middle" font-size="9" fill="#64748b">
+        Measure on your task — don't guess from parameter count alone
+    </text>
+</svg>
         <figcaption>Decision tree: prompt-first, fine-tune only when you have a narrow gap and enough data. Model size is a separate axis.</figcaption>
     </figure>
 
@@ -301,7 +375,7 @@
 
     <p class="footnote">W&amp;B is standard in real ML workflows — not just coursework. The habit of "log first, argue from curves later" saves teams from mistaking luck for skill.</p>
 
-    <hr>
+    <!--<hr>
 
     <h2>5. Activity: Match the Model to the Project</h2>
 
@@ -355,7 +429,7 @@
 
     <div class="assignment-box">
         <strong>Next up:</strong> Hands-on fine-tuning. You will build a dataset, train a model, log runs to W&amp;B, and compare results. Return to this page if you get stuck on <em>whether</em> to change the model vs. the learning rate vs. the data.
-    </div>
+    </div>-->
 
     <hr>
 
